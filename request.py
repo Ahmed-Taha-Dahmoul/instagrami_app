@@ -9,6 +9,7 @@ import re
 import json
 import time
 import random
+import getpass
 
 # List of common User-Agent strings for avoiding detection
 USER_AGENTS = [
@@ -22,7 +23,7 @@ USER_AGENTS = [
 def get_dynamic_instagram_data(username, password):
     """
     Uses Selenium to extract dynamic Instagram data.
-    Handles verification code if required.
+    Handles both direct verification code requests and verification method selection.
 
     Args:
         username (str): Instagram username.
@@ -39,7 +40,7 @@ def get_dynamic_instagram_data(username, password):
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920x1080')
     options.add_argument('--incognito')
-    options.add_argument('--headless')  # Enable headless mode
+    #options.add_argument('--headless')  # Enable headless mode
 
     # Randomly select a User-Agent to reduce detection
     user_agent = random.choice(USER_AGENTS)
@@ -67,24 +68,68 @@ def get_dynamic_instagram_data(username, password):
         login_button = driver.find_element(By.XPATH, "//button[@type='submit']")
         login_button.click()
 
-        # Check for verification code request
+        # Check for verification: Either code directly or method selection
         try:
+            # Wait for either the verification code field OR the method selection page
             WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.NAME, "verificationCode"))
+                EC.any_of(
+                    EC.presence_of_element_located((By.NAME, "verificationCode")),
+                    EC.presence_of_element_located((By.XPATH, "//div[@role='radiogroup']"))
+                )
             )
-            print("Instagram is asking for a verification code.")
-            verification_code = input("Please enter the verification code sent to your device: ")
 
-            verification_field = driver.find_element(By.NAME, "verificationCode")
-            verification_field.send_keys(verification_code)
+            # Case 1: Direct verification code input
+            if driver.find_elements(By.NAME, "verificationCode"):
+                print("Instagram is asking for a verification code.")
+                verification_code = input("Please enter the verification code sent to your device: ")
 
-            # Find the confirm button and click it
-            confirm_button = driver.find_element(By.XPATH, "//button[text()='Confirmer']")
-            confirm_button.click()
+                verification_field = driver.find_element(By.NAME, "verificationCode")
+                verification_field.send_keys(verification_code)
+
+                # Find and click the confirm button
+                confirm_button = driver.find_element(By.XPATH, "//button[text()='Confirmer']")
+                confirm_button.click()
+
+            # Case 2: Verification method selection page
+            elif driver.find_elements(By.XPATH, "//div[@role='radiogroup']"):
+                print("Instagram is asking to choose a verification method.")
+
+                # Try to find and select the phone number option
+                try:
+                    phone_option = driver.find_element(By.XPATH, "//div[@role='radiogroup']//input[@value='SOWA']")
+                    phone_option.click()
+                    print("Phone number verification selected.")
+                except:
+                    print("Phone number option not found, selecting email instead (if available).")
+                    try:
+                        email_option = driver.find_element(By.XPATH, "//div[@role='radiogroup']//input[not(@value='SOWA')]")
+                        email_option.click()
+                        print("Email verification selected.")
+                    except:
+                        print("No selectable verification options found.")
+                        return None
+
+                # Find and click the continue button
+                continue_button = driver.find_element(By.XPATH, "//button[text()='Continuer']")
+                continue_button.click()
+
+                # Wait for the verification code input field
+                WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.NAME, "verificationCode"))
+                )
+                print("Instagram is asking for a verification code.")
+                verification_code = input("Please enter the verification code sent to your device: ")
+
+                verification_field = driver.find_element(By.NAME, "verificationCode")
+                verification_field.send_keys(verification_code)
+
+                # Find and click the confirm button
+                confirm_button = driver.find_element(By.XPATH, "//button[text()='Confirmer']")
+                confirm_button.click()
 
         except:
-            print("No verification code needed.")
-            pass  # No verification code needed
+            print("No verification needed.")
+            pass  # No verification needed
 
         # Wait for the "Save Your Login Info?" prompt or the homepage to load
         try:
@@ -202,7 +247,7 @@ def save_to_json(data, filename="instagram_following.json"):
 
 if __name__ == '__main__':
     username = input("Enter your Instagram username: ")
-    password = input("Enter your Instagram password: ")
+    password = getpass.getpass("Enter your Instagram password: ")
 
     instagram_data = get_dynamic_instagram_data(username, password)
 
