@@ -119,6 +119,14 @@ def get_dynamic_instagram_data():
             )
             print("Please enter the verification code.")
 
+            verification_field = driver.find_element(By.NAME, "verificationCode")
+            verification_code = input()
+            verification_field.send_keys(verification_code)
+
+                # Find and click the confirm button
+            confirm_button = driver.find_element(By.XPATH, "//button[text()='Confirmer']")
+            confirm_button.click()
+            
         except:
             print("No verification required or handled.")
 
