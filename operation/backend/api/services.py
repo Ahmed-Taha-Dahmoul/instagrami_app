@@ -1,7 +1,8 @@
 import httpx
-import asyncio
+from .models import InstagramUser_data
+from django.db import transaction
 
-async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
+def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
     headers = {
         "cookie": f"csrftoken={csrftoken}; ds_user_id={user_id}; sessionid={session_id}",
         "referer": f"https://www.instagram.com/{user_id}/following/?next=/",
@@ -15,7 +16,7 @@ async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
     retry_delay = 5
     count = 12
 
-    async with httpx.AsyncClient() as client:
+    with httpx.Client() as client:
         while True:
             url = f"https://www.instagram.com/api/v1/friendships/{user_id}/following/?count={count}"
             if next_max_id:
@@ -25,7 +26,7 @@ async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
             while retries < max_retries:
                 try:
                     print(f"Fetching URL: {url}, Retry: {retries}, Count: {count}")
-                    response = await client.get(url, headers=headers, timeout=15)
+                    response = client.get(url, headers=headers, timeout=15)
                     response.raise_for_status()
                     data = response.json()
 
@@ -52,7 +53,8 @@ async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
                     retries += 1
                     if retries < max_retries:
                         print(f"Retrying in {retry_delay} seconds...")
-                        await asyncio.sleep(retry_delay)
+                        import time
+                        time.sleep(retry_delay)
                     else:
                         print(f"Max retries exceeded. Aborting.")
                         return None
@@ -61,3 +63,41 @@ async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
                 break
 
     return following
+
+@transaction.atomic
+def _update_instagram_user_data(user, following_data):
+    try:
+        user_instances = InstagramUser_data.objects.filter(user=user)
+
+        if user_instances.exists():
+            for user_instance in user_instances:
+                user_instance.old_list = user_instance.new_list
+                user_instance.new_list = following_data
+                user_instance.save()
+                print(f"Data updated for user {user.username}")
+        else:
+            print(f"Instagram data not found for user {user.username}.")
+    except Exception as e:
+        print(f"Error saving data: {e}")
+        raise
+
+
+def fetch_and_save_following(user):
+    instagram_data = InstagramUser_data.objects.filter(user=user).first()
+
+    if not instagram_data:
+        print(f"No Instagram data found for user {user.username}.")
+        return
+
+    user_id = instagram_data.user1_id
+    session_id = instagram_data.session_id
+    csrftoken = instagram_data.csrftoken
+    x_ig_app_id = instagram_data.x_ig_app_id
+
+    following_data = get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id)
+
+    if following_data is not None:
+        try:
+            _update_instagram_user_data(user, following_data)
+        except Exception as e:
+            print(f"Error saving data: {e}")

@@ -1,6 +1,7 @@
 import httpx
 import asyncio
 
+# Your original script...
 async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
     headers = {
         "cookie": f"csrftoken={csrftoken}; ds_user_id={user_id}; sessionid={session_id}",
@@ -61,3 +62,21 @@ async def get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id):
                 break
 
     return following
+
+# Example usage:
+async def main():
+    # Replace these values with your actual credentials and data
+    user_id = '5100464648'
+    session_id = '5100464648%3AVpkViEWQDRKBNM%3A25%3AAYfLDSm2V44fHwTTVsPHnmTGlB964G60FtAVxd2fpg'
+    csrftoken = '7huvCGE2GpZzZfaaw6s0Lhbzz1dpovOj'
+    x_ig_app_id = '1217981644879628'
+
+    following = await get_instagram_following(user_id, session_id, csrftoken, x_ig_app_id)
+    if following:
+        print(f"Found {len(following)} people the user is following.")
+    else:
+        print("Failed to retrieve following list.")
+
+# Run the main function in asyncio loop
+if __name__ == "__main__":
+    asyncio.run(main())

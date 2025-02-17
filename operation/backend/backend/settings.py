@@ -122,7 +122,8 @@ DATABASES = {
     }
 }
 
-
+from django.core.asgi import get_asgi_application
+application = get_asgi_application()
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
