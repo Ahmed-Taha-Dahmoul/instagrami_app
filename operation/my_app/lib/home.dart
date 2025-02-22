@@ -146,7 +146,6 @@ class _HomePageState extends State<HomePage> {
       });
 
       if (isFirstTimeInstagramConnection) {
-        print("first connection aaaaaaaaaaaaaaaaaa");
         await _attemptFetchAndSendFollowers(accessToken, instagramData);
 
         setState(() {

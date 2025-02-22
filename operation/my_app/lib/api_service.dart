@@ -36,7 +36,6 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        print("gooooooooooooooooooooooooooooooooooooooooooooooooooodddd");
         final responseData = jsonDecode(response.body);
         return responseData['connected'];
       } else {
