@@ -13,8 +13,15 @@ class InstagramUser_data(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     # JSON fields for storing old and new lists
-    old_list = models.JSONField(default=list, blank=True)
-    new_list = models.JSONField(default=list, blank=True)
+    old_following_list = models.JSONField(default=list, blank=True)
+    new_following_list = models.JSONField(default=list, blank=True)
+    who_remove_follow = models.JSONField(default=list, blank=True)
+    
+    followers_list = models.JSONField(default=list, blank=True)
+
+    
+    who_i_follow_he_dont_followback = models.JSONField(default=list, blank=True)
+    who_i_dont_follow_he_followback = models.JSONField(default=list, blank=True)
     
     def __str__(self):
         return str(self.user.username)  # Return the username as a string representation

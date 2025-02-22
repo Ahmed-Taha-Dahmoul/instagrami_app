@@ -118,6 +118,38 @@ def get_encrypted_instagram_data(request):
     
 
 
+def update_follow_relationships(instagram_data):
+    """Update mutual follow relationships."""
+    # Convert followers and following lists to sets of ids
+    following_ids = set(user["pk"] for user in instagram_data.new_following_list)
+    followers_ids = set(user["pk"] for user in instagram_data.followers_list)
+
+    # Find who the user follows but they don't follow back
+    instagram_data.who_i_follow_he_dont_followback = list(following_ids - followers_ids)
+    
+    # Find who follows the user but the user doesn't follow back
+    instagram_data.who_i_dont_follow_he_followback = list(followers_ids - following_ids)
+    
+    instagram_data.save()
+
+
+def update_removed_followers(instagram_data, old_list, new_list):
+    """Update the list of removed followers."""
+    # Convert old and new lists to sets of ids
+    old_ids = set(user["pk"] for user in old_list)
+    new_ids = set(user["pk"] for user in new_list)
+    
+    # Find removed followers
+    removed_followers = old_ids - new_ids
+    
+    # Update who_remove_follow, either appending or incrementing counts
+    existing_removed = instagram_data.who_remove_follow or []
+    updated_removed = existing_removed + list(removed_followers)
+    instagram_data.who_remove_follow = updated_removed
+    instagram_data.save()
+
+
+
 
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
@@ -126,9 +158,9 @@ def save_fetched_followers(request):
     """Receives the follower list from Flutter and updates the database."""
     try:
         user = request.user
-        new_following_list = request.data.get("following_list")
+        followers_list = request.data.get("followers_list")
 
-        if not isinstance(new_following_list, list):
+        if not isinstance(followers_list, list):
             return Response({"error": "Invalid data format. Expecting a list."}, status=status.HTTP_400_BAD_REQUEST)
 
         instagram_data = InstagramUser_data.objects.filter(user=user).first()
@@ -136,13 +168,49 @@ def save_fetched_followers(request):
         if not instagram_data:
             return Response({"error": "Instagram data not found for this user."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Backup old list
-        instagram_data.old_list = instagram_data.new_list
-        instagram_data.new_list = new_following_list
+        # Directly save the followers list as JSON in the database
+        instagram_data.followers_list = followers_list
         instagram_data.save()
 
-        return Response({"message": "Following list updated successfully."}, status=status.HTTP_200_OK)
+        # Update follow relationships (you can keep these functions if needed)
+        update_follow_relationships(instagram_data)
+
+        return Response({"message": "Followers list updated successfully."}, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": "Failed to save data", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def save_fetched_following(request):
+    """Receives the following list from Flutter and updates the database."""
+    try:
+        user = request.user
+        following_list = request.data.get("following_list")
+        
+        if not isinstance(following_list, list):
+            
+            return Response({"error": "Invalid data format. Expecting a list."}, status=status.HTTP_400_BAD_REQUEST)
+
+        instagram_data = InstagramUser_data.objects.filter(user=user).first()
+        
+        if not instagram_data:
+            return Response({"error": "Instagram data not found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Backup the old following list before updating
+        instagram_data.old_following_list = instagram_data.new_following_list
+        instagram_data.new_following_list = following_list  # Saving the complete list
+
+        # Directly save the following list as JSON in the database
+        instagram_data.save()
+
+        # Optionally, update follow relationships if needed
+        update_follow_relationships(instagram_data)
+
+        return Response({"message": "Following list updated successfully."}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return Response({"error": "Failed to save data", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

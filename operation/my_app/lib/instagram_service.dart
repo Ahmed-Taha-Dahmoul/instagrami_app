@@ -79,7 +79,7 @@ class InstagramApiService {
   static Future<void> sendFollowerList(
       String token, List<dynamic> followingList) async {
     final response = await http.post(
-      Uri.parse("${AppConfig.baseUrl}api/save-fetched-followers/"),
+      Uri.parse("${AppConfig.baseUrl}api/save-fetched-following/"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
