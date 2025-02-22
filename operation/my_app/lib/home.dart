@@ -183,7 +183,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      await fetchAndSendFollowing(
+      await fetchAndSendInstagramData(
         accessToken,
         instagramData['user1_id'],
         instagramData['session_id'],
