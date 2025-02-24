@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'instagram_login.dart';
-//import 'bottom_nav_bar.dart'; // REMOVE: No longer needed here
 import 'api_service.dart';
 import 'instagram_service.dart';
 
@@ -12,7 +11,7 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
 
   bool isInstagramConnected = false;
@@ -27,7 +26,9 @@ class _HomePageState extends State<HomePage> {
 
   bool isFirstTimeInstagramConnection = true;
 
-  //int _selectedTabIndex = 0; // Already removed
+  late final AnimationController _controller1;
+  late final AnimationController _controller2;
+  late final AnimationController _controller3;
 
   @override
   void initState() {
@@ -35,11 +36,29 @@ class _HomePageState extends State<HomePage> {
     _loadLastFetchedTime();
     _checkInstagramStatus();
     _startTimer();
+
+    _controller1 = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _controller2 = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+
+    _controller3 = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    );
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _controller1.dispose();
+    _controller2.dispose();
+    _controller3.dispose();
     super.dispose();
   }
 
@@ -109,14 +128,12 @@ class _HomePageState extends State<HomePage> {
     try {
       String? accessToken = await _storage.read(key: 'access_token');
       if (accessToken == null) {
-        // Handle null accessToken, e.g., navigate to login
         setState(() {
           isInstagramConnected = false;
           isLoading = false;
         });
         return;
       }
-      // Check Instagram status first
       bool status = await ApiService.checkInstagramStatus(accessToken);
       print("Instagram status: $status");
 
@@ -125,10 +142,9 @@ class _HomePageState extends State<HomePage> {
           isInstagramConnected = false;
           isLoading = false;
         });
-        return; // Exit early if the status is false
+        return;
       }
 
-      // Only proceed if status is true
       await _fetchAndDecryptInstagramData_check(accessToken);
       status = await _verifyInstagramConnection();
       setState(() {
@@ -136,6 +152,9 @@ class _HomePageState extends State<HomePage> {
         isLoading = false;
       });
       if (status) {
+        _controller1.forward(); // Start animations *only* if connected
+        _controller2.forward();
+        _controller3.forward();
         await _fetchAndDecryptInstagramData(accessToken);
       }
     } catch (e) {
@@ -190,12 +209,9 @@ class _HomePageState extends State<HomePage> {
         return false;
       }
 
-      // Adjust the keys based on the terminal output
       String? csrftoken = instagramData['csrftoken'];
-      String? userId =
-          instagramData['user1_id']; // Use 'user1_id' instead of 'user_id'
-      String? sessionId = instagramData[
-          'session_id']; // Use 'session_id' instead of 'sessionid'
+      String? userId = instagramData['user1_id'];
+      String? sessionId = instagramData['session_id'];
       String? xIgAppId = instagramData['x_ig_app_id'];
 
       int count = 1;
@@ -281,7 +297,6 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(builder: (context) => InstagramLogin()),
     ).then((_) {
-      // Rebuild the HomePage after returning.  Critically important.
       setState(() {
         _checkInstagramStatus();
       });
@@ -322,14 +337,12 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return Center(child: CircularProgressIndicator()); // Center the loader
+      return Center(child: CircularProgressIndicator());
     }
 
     return Center(
-      // Center the whole content
       child: Column(
-        mainAxisSize:
-            MainAxisSize.min, // Keeps the Column only as big as needed
+        mainAxisAlignment: MainAxisAlignment.center, // Center vertically
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -356,18 +369,86 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(color: Colors.red),
               ),
             ),
-          Text(
-            isInstagramConnected
-                ? "Instagram account connected!"
-                : "Instagram account is not connected.",
-          ),
-          SizedBox(height: 20),
-          if (!isInstagramConnected)
+          if (!isInstagramConnected) ...[
             ElevatedButton(
               onPressed: _navigateToLogin,
               child: Text("Login with Instagram"),
             ),
+            SizedBox(height: 20), // Add some space
+          ],
+
+          // Conditionally show the cards
+          if (isInstagramConnected)
+            Expanded(
+              child: Padding(
+                // Add padding here
+                padding: const EdgeInsets.all(16.0),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 25,
+                  crossAxisSpacing: 25,
+                  primary: false,
+                  //padding: EdgeInsets.all(16), // Removed padding from here
+                  children: [
+                    ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: _controller1,
+                        curve: Curves.easeOut,
+                      ),
+                      child: _buildCard(
+                          'assets/icons/student.png', 'Who Unfollowed You'),
+                    ),
+                    ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: _controller2,
+                        curve: Curves.easeOut,
+                      ),
+                      child: _buildCard('assets/icons/schedule.png',
+                          'Who is not following you back'),
+                    ),
+                    ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: _controller3,
+                        curve: Curves.easeOut,
+                      ),
+                      child: _buildCard('assets/icons/prize.png',
+                          'Who you are not following'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCard(String imagePath, String title) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          print("$title tapped!");
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(imagePath, width: 64, height: 64),
+            SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
