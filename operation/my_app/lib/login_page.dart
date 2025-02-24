@@ -4,9 +4,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config.dart'; // Importing base URL config
-import 'home.dart'; // Import HomePage
+// import 'home.dart'; // Removed: Don't import HomePage
 
 class LoginPage extends StatefulWidget {
+  final ValueNotifier<bool> isLoggedIn; // Add ValueNotifier
+
+  LoginPage({Key? key, required this.isLoggedIn})
+      : super(key: key); // Constructor
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
@@ -260,60 +265,28 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           await _storage.write(key: 'access_token', value: accessToken);
           await _storage.write(key: 'refresh_token', value: refreshToken);
 
+          // Update the ValueNotifier
+          widget.isLoggedIn.value = true;
+
           if (mounted) {
-            _showSuccessDialog();
+            Navigator.pop(
+                context); // Close the login page, don't navigate to HomePage
           }
         } else {
           final errorData = jsonDecode(response.body);
-          String errorMessage = errorData['detail'] ??
-              'Login failed'; // Use 'detail' for error message. Adjust as needed.
+          String errorMessage = errorData['detail'] ?? 'Login failed';
           _showErrorSnackBar(errorMessage);
         }
       } catch (error) {
         _showErrorSnackBar('Error: ${error.toString()}');
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 60),
-                const SizedBox(height: 10),
-                Text(
-                  "Login Successful!",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                CircularProgressIndicator(color: Colors.green),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    Future.delayed(Duration(seconds: 2), () {
-      Navigator.pop(context); // Close dialog
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => HomePage()),
-        (Route<dynamic> route) => false, // Removes all previous routes
-      );
-    });
   }
 
   void _showErrorSnackBar(String message) {

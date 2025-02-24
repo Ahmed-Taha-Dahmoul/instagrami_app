@@ -4,9 +4,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config.dart'; // Importing base URL config
-import 'home.dart';
+// import 'home.dart'; // Remove this import
 
 class SignupPage extends StatefulWidget {
+  final ValueNotifier<bool> isLoggedIn; // Add this
+
+  SignupPage({required this.isLoggedIn}); // Add to constructor
+
   @override
   _SignupPageState createState() => _SignupPageState();
 }
@@ -106,6 +110,13 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
                             _isPasswordVisible = !_isPasswordVisible;
                           });
                         },
+                        validator: (value) {
+                          // Added validator here
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter a password';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 20),
                       _buildPasswordField(
@@ -185,12 +196,10 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
     required TextEditingController controller,
     required String hintText,
     required IconData icon,
-    bool obscureText = false,
     required String? Function(String?) validator,
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: obscureText,
       validator: validator,
       decoration: InputDecoration(
         hintText: hintText,
@@ -201,6 +210,13 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide.none,
         ),
+        focusedBorder: OutlineInputBorder(
+          // Added focusedBorder
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFFCF8360), width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
       ),
     );
   }
@@ -210,12 +226,12 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
     required String hintText,
     required bool isPasswordVisible,
     required VoidCallback toggleVisibility,
-    String? Function(String?)? validator,
+    String? Function(String?)? validator, // Make validator optional
   }) {
     return TextFormField(
       controller: controller,
       obscureText: !isPasswordVisible,
-      validator: validator,
+      validator: validator, // Use the passed validator
       decoration: InputDecoration(
         hintText: hintText,
         prefixIcon: const Icon(Icons.lock, color: Color(0xFFCF8360)),
@@ -225,6 +241,13 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide.none,
         ),
+        focusedBorder: OutlineInputBorder(
+          // Added focusedBorder
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFFCF8360), width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
         suffixIcon: IconButton(
           icon: Icon(
             isPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -234,44 +257,6 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
         ),
       ),
     );
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 60),
-                const SizedBox(height: 10),
-                Text(
-                  "Signup Successful!",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                CircularProgressIndicator(color: Colors.green),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    // Delay and then navigate to HomePage
-    Future.delayed(Duration(seconds: 2), () {
-      Navigator.pop(context);
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => HomePage()),
-        (Route<dynamic> route) => false, // Removes all previous routes
-      );
-    });
   }
 
   void _submitForm() async {
@@ -291,26 +276,32 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'username': email, 'password': password}),
         );
-
-        if (response.statusCode == 201 || response.statusCode == 200) {
+        if (response.statusCode == 201) {
+          //  || response.statusCode == 200  no need for 200
           final responseData = jsonDecode(response.body);
           await _storage.write(
               key: 'access_token', value: responseData['access']);
           await _storage.write(
               key: 'refresh_token', value: responseData['refresh']);
-
+          widget.isLoggedIn.value = true; // Update ValueNotifier
           if (mounted) {
-            _showSuccessDialog();
+            Navigator.pop(context); //close sign up page
           }
         } else {
-          _showErrorSnackBar('Signup failed');
+          final errorData = jsonDecode(response.body); //added this
+          String errorMessage =
+              errorData['detail'] ?? 'Signup failed'; //added this
+          _showErrorSnackBar(errorMessage); //added this
         }
       } catch (error) {
         _showErrorSnackBar('Error: ${error.toString()}');
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          //added this
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }

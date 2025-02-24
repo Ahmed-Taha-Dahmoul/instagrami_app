@@ -122,6 +122,8 @@ DATABASES = {
     }
 }
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760
+
 from django.core.asgi import get_asgi_application
 application = get_asgi_application()
 

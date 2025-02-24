@@ -1,9 +1,9 @@
-// home_page.dart (modified _navigateToLogin and _checkInstagramStatus)
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'instagram_login.dart';
-import 'bottom_nav_bar.dart';
+//import 'bottom_nav_bar.dart'; // REMOVE: No longer needed here
 import 'api_service.dart';
 import 'instagram_service.dart';
 
@@ -27,7 +27,7 @@ class _HomePageState extends State<HomePage> {
 
   bool isFirstTimeInstagramConnection = true;
 
-  int _selectedTabIndex = 0;
+  //int _selectedTabIndex = 0; // Already removed
 
   @override
   void initState() {
@@ -99,9 +99,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _checkInstagramStatus() async {
-    print("_checkInstagramStatus called"); // Add this line for debugging
-    if (!mounted)
-      return; // Very important: prevents errors after widget disposal
+    if (!mounted) return;
 
     setState(() {
       isLoading = true;
@@ -110,22 +108,33 @@ class _HomePageState extends State<HomePage> {
 
     try {
       String? accessToken = await _storage.read(key: 'access_token');
-      if (accessToken == null || accessToken.isEmpty) {
-        print("Access token is null or empty.");
+      if (accessToken == null) {
+        // Handle null accessToken, e.g., navigate to login
         setState(() {
           isInstagramConnected = false;
           isLoading = false;
         });
         return;
       }
-
+      // Check Instagram status first
       bool status = await ApiService.checkInstagramStatus(accessToken);
-      print("Instagram status: $status"); // Add for debugging
+      print("Instagram status: $status");
+
+      if (!status) {
+        setState(() {
+          isInstagramConnected = false;
+          isLoading = false;
+        });
+        return; // Exit early if the status is false
+      }
+
+      // Only proceed if status is true
+      await _fetchAndDecryptInstagramData_check(accessToken);
+      status = await _verifyInstagramConnection();
       setState(() {
         isInstagramConnected = status;
         isLoading = false;
       });
-
       if (status) {
         await _fetchAndDecryptInstagramData(accessToken);
       }
@@ -134,6 +143,20 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         errorMessage = "Error checking Instagram status: ${e.toString()}";
         isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchAndDecryptInstagramData_check(String accessToken) async {
+    try {
+      final data = await ApiService.getInstagramData(accessToken);
+      setState(() {
+        instagramData = data;
+      });
+    } catch (e) {
+      print("Error fetching and decrypting data: $e");
+      setState(() {
+        errorMessage = "Error fetching and decrypting data: ${e.toString()}";
       });
     }
   }
@@ -147,17 +170,68 @@ class _HomePageState extends State<HomePage> {
 
       if (isFirstTimeInstagramConnection) {
         await _attemptFetchAndSendFollowers(accessToken, instagramData);
-
         setState(() {
           isFirstTimeInstagramConnection = false;
         });
-        _saveFirstTimeConnectionFlag(); // Save that it's not the first time anymore
+        _saveFirstTimeConnectionFlag();
       }
     } catch (e) {
       print("Error fetching and decrypting data: $e");
       setState(() {
         errorMessage = "Error fetching and decrypting data: ${e.toString()}";
       });
+    }
+  }
+
+  Future<bool> _verifyInstagramConnection() async {
+    try {
+      if (instagramData.isEmpty) {
+        print("Instagram data is null. Cannot verify connection.");
+        return false;
+      }
+
+      // Adjust the keys based on the terminal output
+      String? csrftoken = instagramData['csrftoken'];
+      String? userId =
+          instagramData['user1_id']; // Use 'user1_id' instead of 'user_id'
+      String? sessionId = instagramData[
+          'session_id']; // Use 'session_id' instead of 'sessionid'
+      String? xIgAppId = instagramData['x_ig_app_id'];
+
+      int count = 1;
+
+      if (csrftoken == null ||
+          userId == null ||
+          sessionId == null ||
+          xIgAppId == null) {
+        print("Missing required Instagram authentication data");
+        return false;
+      }
+
+      final headers = {
+        "cookie":
+            "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
+        "referer": "https://www.instagram.com/$userId/following/?next=/",
+        "x-csrftoken": csrftoken,
+        "x-ig-app-id": xIgAppId,
+      };
+
+      String url =
+          "https://www.instagram.com/api/v1/friendships/$userId/following/?count=$count";
+
+      final response = await http.get(Uri.parse(url), headers: headers);
+      print(response.body);
+      if (response.statusCode == 200) {
+        print("Instagram connection verified.");
+        return true;
+      } else {
+        print(
+            "Instagram connection failed with status: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Error verifying Instagram connection: $e");
+      return false;
     }
   }
 
@@ -214,12 +288,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _onTabSelected(int index) {
-    setState(() {
-      _selectedTabIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,62 +316,59 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: Center(
-        child: _buildBody(),
-      ),
-      bottomNavigationBar: BottomNavBar(onTabSelected: _onTabSelected),
+      body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
     if (isLoading) {
-      return CircularProgressIndicator(); // Initial loading
+      return Center(child: CircularProgressIndicator()); // Center the loader
     }
 
-    return _selectedTabIndex == 0
-        ? Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Container(
-                  padding: EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Text(
-                    _timeUntilNextFetch,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+    return Center(
+      // Center the whole content
+      child: Column(
+        mainAxisSize:
+            MainAxisSize.min, // Keeps the Column only as big as needed
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              padding: EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: Text(
+                _timeUntilNextFetch,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              if (errorMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    errorMessage,
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              Text(isInstagramConnected
-                  ? "Instagram account connected!"
-                  : "Instagram account is not connected."),
-              SizedBox(height: 20),
-              if (!isInstagramConnected)
-                ElevatedButton(
-                  onPressed: _navigateToLogin,
-                  child: Text("Login with Instagram"),
-                ),
-            ],
-          )
-        : _selectedTabIndex == 1
-            ? Center(child: Text("Profile Page"))
-            : _selectedTabIndex == 2
-                ? Center(child: Text("Settings Page"))
-                : Container();
+            ),
+          ),
+          if (errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                errorMessage,
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          Text(
+            isInstagramConnected
+                ? "Instagram account connected!"
+                : "Instagram account is not connected.",
+          ),
+          SizedBox(height: 20),
+          if (!isInstagramConnected)
+            ElevatedButton(
+              onPressed: _navigateToLogin,
+              child: Text("Login with Instagram"),
+            ),
+        ],
+      ),
+    );
   }
 }

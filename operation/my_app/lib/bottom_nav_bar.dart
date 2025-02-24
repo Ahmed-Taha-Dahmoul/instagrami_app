@@ -1,28 +1,37 @@
 import 'package:flutter/material.dart';
 
 class BottomNavBar extends StatefulWidget {
+  final int initialIndex; // Add initialIndex
   final Function(int) onTabSelected;
 
-  BottomNavBar({required this.onTabSelected});
+  BottomNavBar(
+      {required this.onTabSelected, this.initialIndex = 0}); // Default to 0
 
   @override
   _BottomNavBarState createState() => _BottomNavBarState();
 }
 
 class _BottomNavBarState extends State<BottomNavBar> {
-  int _selectedIndex = 0;
+  late int _selectedIndex; // Use late initialization
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex; // Initialize with initialIndex
+  }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    // No need to setState here, as the parent will handle navigation
     widget.onTabSelected(index); // Notify the parent widget
   }
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed, // Important for > 3 items
       currentIndex: _selectedIndex,
+      selectedItemColor: Colors.blue, // Or your preferred color
+      unselectedItemColor: Colors.grey, // Or your preferred color
       onTap: _onItemTapped,
       items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(
@@ -36,6 +45,10 @@ class _BottomNavBarState extends State<BottomNavBar> {
         BottomNavigationBarItem(
           icon: Icon(Icons.settings),
           label: 'Settings',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.star),
+          label: 'Followed',
         ),
       ],
     );

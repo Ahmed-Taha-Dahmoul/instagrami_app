@@ -8,6 +8,18 @@ import json
 from rest_framework.response import Response
 from rest_framework import status
 
+
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def verify_token(request):
+    return Response({"message": "Token is valid"}, status=200)
+
+
+
+
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])  # Use JWT for authentication
 @permission_classes([IsAuthenticated])  # Ensure the user is authenticated
@@ -214,3 +226,101 @@ def save_fetched_following(request):
     except Exception as e:
         print(f"Error: {str(e)}")
         return Response({"error": "Failed to save data", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+from rest_framework.pagination import PageNumberPagination
+
+
+#traja3 alli eni nfollowi fehom w houma le
+
+class CustomPagination(PageNumberPagination):
+    page_size = 15  # Number of users per page
+    page_size_query_param = 'page_size'
+    max_page_size = 50  # Maximum number of users per request
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_followed_but_not_followed_back(request):
+    try:
+        instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+
+        unfollowed_back_users_ids = instagram_user_data.who_i_follow_he_dont_followback
+        following_data = instagram_user_data.new_following_list
+        following_dict = {user['pk']: user for user in following_data}
+
+        result = [
+            {
+                "id": user_data.get('id'),
+                "username": user_data.get('username'),
+                "full_name": user_data.get('full_name'),
+                "is_private": user_data.get('is_private'),
+                "is_verified": user_data.get('is_verified'),
+                "profile_pic_url": user_data.get('profile_pic_url'),
+            }
+            for user_pk in unfollowed_back_users_ids if (user_data := following_dict.get(user_pk))
+        ]
+
+        paginator = CustomPagination()
+        paginated_data = paginator.paginate_queryset(result, request)
+
+        return paginator.get_paginated_response(paginated_data)
+
+    except InstagramUser_data.DoesNotExist:
+        return Response({"error": "Instagram user data not found"}, status=404)
+
+
+
+
+
+
+
+
+
+
+#traja3 el yfollow fiya weni le
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_dont_follow_back_you(request):
+    try:
+        # Get the InstagramUser_data object for the authenticated user
+        instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+
+        # Retrieve the list of users who follow the user but they don't follow back (only their pk)
+        follow_back_you_users_ids = instagram_user_data.who_i_dont_follow_he_followback
+
+        # Retrieve the new_following_list to map the pk's to actual user data
+        following_data = instagram_user_data.new_following_list
+
+        # Create a dictionary for quick lookup of users by their pk
+        following_dict = {user['pk']: user for user in following_data}
+
+        # Retrieve and return user data for the pks in follow_back_you_users_ids
+        result = [
+            {
+                "id": user_data.get('id'),
+                "username": user_data.get('username'),
+                "full_name": user_data.get('full_name'),
+                "is_private": user_data.get('is_private'),
+                "is_verified": user_data.get('is_verified'),
+                "profile_pic_url": user_data.get('profile_pic_url'),
+            }
+            for user_pk in follow_back_you_users_ids if (user_data := following_dict.get(user_pk))
+        ]
+
+        # Set up pagination
+        paginator = CustomPagination()
+        paginated_data = paginator.paginate_queryset(result, request)
+
+        return paginator.get_paginated_response(paginated_data)
+
+    except InstagramUser_data.DoesNotExist:
+        return Response({"error": "Instagram user data not found"}, status=404)

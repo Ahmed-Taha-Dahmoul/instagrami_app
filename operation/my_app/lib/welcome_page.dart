@@ -45,6 +45,9 @@ class AnimatedElementData {
 }
 
 class WelcomePage extends StatefulWidget {
+  final ValueNotifier<bool> isLoggedIn; // Make it required
+
+  WelcomePage({required this.isLoggedIn}); // Make it required in constructor
   @override
   _WelcomePageState createState() => _WelcomePageState();
 }
@@ -256,14 +259,19 @@ class _WelcomePageState extends State<WelcomePage>
             text: 'Login',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => LoginPage()),
+              MaterialPageRoute(
+                  builder: (context) =>
+                      LoginPage(isLoggedIn: widget.isLoggedIn)),
             ),
           ),
           _AuthButton(
             text: 'Register',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SignupPage()),
+              MaterialPageRoute(
+                  builder: (context) => SignupPage(
+                      isLoggedIn: widget
+                          .isLoggedIn)), // Now correctly passing isLoggedIn
             ),
           ),
         ],
