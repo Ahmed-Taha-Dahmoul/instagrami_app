@@ -46,10 +46,6 @@ class _BottomNavBarState extends State<BottomNavBar> {
           icon: Icon(Icons.settings),
           label: 'Settings',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.star),
-          label: 'Followed',
-        ),
       ],
     );
   }

@@ -1,3 +1,4 @@
+// home.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -5,6 +6,9 @@ import 'dart:async';
 import 'instagram_login.dart';
 import 'api_service.dart';
 import 'instagram_service.dart';
+import 'followed_but_not_followed_back.dart';
+import 'not_followed_but_following_me.dart';
+import 'who_unfollowed_you.dart'; // Import the UnfollowedYouScreen
 
 class HomePage extends StatefulWidget {
   @override
@@ -152,7 +156,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         isLoading = false;
       });
       if (status) {
-        _controller1.forward(); // Start animations *only* if connected
+        _controller1.forward();
         _controller2.forward();
         _controller3.forward();
         await _fetchAndDecryptInstagramData(accessToken);
@@ -342,7 +346,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -374,21 +378,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               onPressed: _navigateToLogin,
               child: Text("Login with Instagram"),
             ),
-            SizedBox(height: 20), // Add some space
+            SizedBox(height: 20),
           ],
-
-          // Conditionally show the cards
           if (isInstagramConnected)
             Expanded(
               child: Padding(
-                // Add padding here
                 padding: const EdgeInsets.all(16.0),
                 child: GridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: 25,
                   crossAxisSpacing: 25,
                   primary: false,
-                  //padding: EdgeInsets.all(16), // Removed padding from here
                   children: [
                     ScaleTransition(
                       scale: CurvedAnimation(
@@ -396,23 +396,55 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         curve: Curves.easeOut,
                       ),
                       child: _buildCard(
-                          'assets/icons/student.png', 'Who Unfollowed You'),
+                        'assets/icons/student.png',
+                        'Who Unfollowed You',
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    UnfollowedYouScreen()), // Use the correct screen
+                          );
+                        },
+                      ),
                     ),
                     ScaleTransition(
                       scale: CurvedAnimation(
                         parent: _controller2,
                         curve: Curves.easeOut,
                       ),
-                      child: _buildCard('assets/icons/schedule.png',
-                          'Who is not following you back'),
+                      child: _buildCard(
+                        'assets/icons/schedule.png',
+                        'Who is not following you back',
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  FollowedButNotFollowedBackScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                     ScaleTransition(
                       scale: CurvedAnimation(
                         parent: _controller3,
                         curve: Curves.easeOut,
                       ),
-                      child: _buildCard('assets/icons/prize.png',
-                          'Who you are not following'),
+                      child: _buildCard(
+                        'assets/icons/prize.png',
+                        'Who you are not following',
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  not_followed_but_following_me_Screen(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -423,7 +455,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCard(String imagePath, String title) {
+  Widget _buildCard(String imagePath, String title, VoidCallback onTap) {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -431,9 +463,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       elevation: 4,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          print("$title tapped!");
-        },
+        onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

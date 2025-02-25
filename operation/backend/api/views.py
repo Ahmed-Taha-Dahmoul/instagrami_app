@@ -286,24 +286,21 @@ def get_followed_but_not_followed_back(request):
 
 #traja3 el yfollow fiya weni le
 
-@api_view(['POST'])
+@api_view(['GET'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def get_dont_follow_back_you(request):
     try:
-        # Get the InstagramUser_data object for the authenticated user
         instagram_user_data = InstagramUser_data.objects.get(user=request.user)
 
-        # Retrieve the list of users who follow the user but they don't follow back (only their pk)
-        follow_back_you_users_ids = instagram_user_data.who_i_dont_follow_he_followback
+        # Get the list of users who follow the authenticated user, but they don't follow back
+        dont_follow_back_users_ids = instagram_user_data.who_i_dont_follow_he_followback
 
-        # Retrieve the new_following_list to map the pk's to actual user data
-        following_data = instagram_user_data.new_following_list
+        # Retrieve the full following list to extract user details
+        followers_data = instagram_user_data.followers_list  # Assuming followers are stored here
+        followers_dict = {user['pk']: user for user in followers_data}
 
-        # Create a dictionary for quick lookup of users by their pk
-        following_dict = {user['pk']: user for user in following_data}
-
-        # Retrieve and return user data for the pks in follow_back_you_users_ids
+        # Construct response
         result = [
             {
                 "id": user_data.get('id'),
@@ -313,7 +310,7 @@ def get_dont_follow_back_you(request):
                 "is_verified": user_data.get('is_verified'),
                 "profile_pic_url": user_data.get('profile_pic_url'),
             }
-            for user_pk in follow_back_you_users_ids if (user_data := following_dict.get(user_pk))
+            for user_pk in dont_follow_back_users_ids if (user_data := followers_dict.get(user_pk))
         ]
 
         # Set up pagination

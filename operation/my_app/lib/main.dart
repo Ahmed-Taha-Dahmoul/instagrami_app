@@ -1,4 +1,3 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -10,7 +9,7 @@ import 'home.dart';
 import 'login_page.dart';
 import 'signup.dart';
 import 'bottom_nav_bar.dart';
-import 'followed_but_not_followed_back.dart';
+//import 'followed_but_not_followed_back.dart'; // Removed import
 import 'profile_page.dart';
 import 'settings_page.dart';
 
@@ -99,20 +98,18 @@ class _MyAppState extends State<MyApp> {
       ),
       routes: {
         '/login': (context) => LoginPage(isLoggedIn: _isLoggedIn),
-        '/register': (context) =>
-            SignupPage(isLoggedIn: _isLoggedIn), // FIX: Provide isLoggedIn here
+        '/register': (context) => SignupPage(isLoggedIn: _isLoggedIn),
         '/main': (context) => MainScreen(),
         '/profile': (context) => ProfilePage(),
         '/settings': (context) => SettingsPage(),
-        '/followed': (context) => FollowedButNotFollowedBackScreen(),
+        //'/followed': (context) => FollowedButNotFollowedBackScreen(), // Removed route
       },
       home: ValueListenableBuilder<bool>(
         valueListenable: _isLoggedIn,
         builder: (context, isLoggedIn, child) {
           return isLoggedIn
               ? MainScreen()
-              : WelcomePage(
-                  isLoggedIn: _isLoggedIn); // FIX: Provide isLoggedIn here
+              : WelcomePage(isLoggedIn: _isLoggedIn);
         },
       ),
     );
@@ -133,7 +130,7 @@ class _MainScreenState extends State<MainScreen> {
     HomePage(),
     ProfilePage(), // Replace with your actual ProfilePage
     SettingsPage(), // Replace with your actual SettingsPage
-    FollowedButNotFollowedBackScreen(),
+    //FollowedButNotFollowedBackScreen(), // Removed screen
   ];
 
   void _onPageChanged(int index) {
