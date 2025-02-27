@@ -4,14 +4,14 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config.dart';
 
-class not_followed_but_following_me_Screen extends StatefulWidget {
+class NotFollowedButFollowingMeScreen extends StatefulWidget {
   @override
   _not_followed_but_following_me_tate createState() =>
       _not_followed_but_following_me_tate();
 }
 
 class _not_followed_but_following_me_tate
-    extends State<not_followed_but_following_me_Screen> {
+    extends State<NotFollowedButFollowingMeScreen> {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   List<User> _users = [];
   int _currentPage = 1;

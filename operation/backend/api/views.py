@@ -7,7 +7,7 @@ from django.http import JsonResponse
 import json
 from rest_framework.response import Response
 from rest_framework import status
-
+from .serializers import InstagramUserDataSerializer
 
 
 
@@ -321,3 +321,130 @@ def get_dont_follow_back_you(request):
 
     except InstagramUser_data.DoesNotExist:
         return Response({"error": "Instagram user data not found"}, status=404)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#hedhi bech tokhou el user data mel front end 
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def save_instagram_user_profile(request):
+    try:
+        # Get the incoming JSON data from the request body
+        user_data = request.data.get('user_data')
+
+        # Check if 'user_data' exists and has the 'user' key
+        if not user_data:
+            return Response({"error": "No 'user_data' found in the request body"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = user_data.get('user')  # Extract the 'user' part
+        if not user:
+            return Response({"error": "No user information found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Explicitly extract only the relevant fields from the 'user' data
+        instagram_username = user.get('username', '')
+        
+        instagram_full_name = user.get('full_name', '')
+        
+        instagram_follower_count = user.get('follower_count', 0)
+        
+        instagram_following_count = user.get('following_count', 0)
+        
+        instagram_total_posts = user.get('media_count', 0)
+        
+        instagram_biography = user.get('biography', '')
+        
+        instagram_profile_picture_url = user.get('profile_pic_url', '')
+        
+        # Get the InstagramUser_data object related to the authenticated user
+        try:
+            instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+            created = False
+            print("Found existing InstagramUser_data for user.")
+        except InstagramUser_data.DoesNotExist:
+            # If not found, create a new one
+            instagram_user_data = InstagramUser_data(user=request.user)
+            created = True
+            print("No existing InstagramUser_data found, creating a new one.")
+
+        # Update the InstagramUser_data fields with the extracted values
+        instagram_user_data.instagram_username = instagram_username
+        
+        instagram_user_data.instagram_full_name = instagram_full_name
+       
+        instagram_user_data.instagram_follower_count = instagram_follower_count
+        
+        instagram_user_data.instagram_following_count = instagram_following_count
+       
+        instagram_user_data.instagram_total_posts = instagram_total_posts
+        
+
+        instagram_user_data.instagram_biography = instagram_biography
+        
+
+        instagram_user_data.instagram_profile_picture_url = instagram_profile_picture_url
+        
+
+        # Save the InstagramUser_data object (either updated or new)
+        instagram_user_data.save()
+        
+
+        # Serialize the saved or updated data
+        serializer = InstagramUserDataSerializer(instagram_user_data)
+
+        return Response({
+            "success": "User data saved successfully",
+            "user_data": serializer.data
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    
+
+
+
+
+#hedhi bech nabathou el user profile data lel front 
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_instagram_user_profile(request):
+    try:
+        # Try to get the InstagramUser_data object related to the authenticated user
+        instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+
+        # Serialize the InstagramUser_data
+        serializer = InstagramUserDataSerializer(instagram_user_data)
+
+        # Return the serialized data as a JSON response
+        return Response({
+            "success": "User data fetched successfully",
+            "user_data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    except InstagramUser_data.DoesNotExist:
+        return Response({"error": "Instagram user data not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -107,8 +107,6 @@ class _InstagramLoginState extends State<InstagramLogin> {
         "x_ig_app_id": xIgAppId ?? "",
       };
 
-      print("Request body: ${jsonEncode(requestBody)}");
-
       Map<String, String> headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer $accessToken",
@@ -124,7 +122,6 @@ class _InstagramLoginState extends State<InstagramLogin> {
         print("Cookies and x_ig_app_id sent successfully!");
       } else {
         print("Failed to send data. Status code: ${response.statusCode}");
-        print("Error message: ${response.body}");
       }
     } catch (e) {
       print("Error sending cookies via request: $e");

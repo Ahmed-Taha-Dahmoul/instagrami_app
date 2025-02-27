@@ -6,12 +6,11 @@ import 'dart:convert';
 import 'config.dart';
 import 'welcome_page.dart';
 import 'home.dart';
-import 'login_page.dart';
-import 'signup.dart';
 import 'bottom_nav_bar.dart';
-//import 'followed_but_not_followed_back.dart'; // Removed import
+//import 'followed_but_not_followed_back.dart'; // Removed import and references
 import 'profile_page.dart';
 import 'settings_page.dart';
+import 'app_routes.dart'; // Import the new routes file
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,7 +62,7 @@ class _MyAppState extends State<MyApp> {
       },
     );
 
-    return response.statusCode == 200; // Token is valid if response is 200
+    return response.statusCode == 200;
   }
 
   Future<String?> _refreshToken(String refreshToken) async {
@@ -74,9 +73,9 @@ class _MyAppState extends State<MyApp> {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body)['access']; // Return new access token
+      return jsonDecode(response.body)['access'];
     } else {
-      return null; // Refresh failed
+      return null;
     }
   }
 
@@ -96,14 +95,8 @@ class _MyAppState extends State<MyApp> {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: const Color(0xFFF5C7B8),
       ),
-      routes: {
-        '/login': (context) => LoginPage(isLoggedIn: _isLoggedIn),
-        '/register': (context) => SignupPage(isLoggedIn: _isLoggedIn),
-        '/main': (context) => MainScreen(),
-        '/profile': (context) => ProfilePage(),
-        '/settings': (context) => SettingsPage(),
-        //'/followed': (context) => FollowedButNotFollowedBackScreen(), // Removed route
-      },
+      // onGenerateRoute: AppRoutes.generateRoute, // Use onGenerateRoute -- PREFERRED for complex routing
+      routes: AppRoutes.routes(_isLoggedIn), // Pass _isLoggedIn
       home: ValueListenableBuilder<bool>(
         valueListenable: _isLoggedIn,
         builder: (context, isLoggedIn, child) {
@@ -125,11 +118,10 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
   int _selectedIndex = 0;
 
-  // List of your screens.  Order matters; it corresponds to the BottomNavBar.
   final List<Widget> _screens = [
     HomePage(),
-    ProfilePage(), // Replace with your actual ProfilePage
-    SettingsPage(), // Replace with your actual SettingsPage
+    ProfilePage(),
+    SettingsPage(),
     //FollowedButNotFollowedBackScreen(), // Removed screen
   ];
 
@@ -140,7 +132,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onTabSelected(int index) {
-    _pageController.jumpToPage(index); // Use jumpToPage for instant change
+    _pageController.jumpToPage(index);
   }
 
   @override
@@ -150,8 +142,7 @@ class _MainScreenState extends State<MainScreen> {
         controller: _pageController,
         children: _screens,
         onPageChanged: _onPageChanged,
-        physics:
-            NeverScrollableScrollPhysics(), // Prevent swiping between pages
+        physics: NeverScrollableScrollPhysics(),
       ),
       bottomNavigationBar: BottomNavBar(
         onTabSelected: _onTabSelected,

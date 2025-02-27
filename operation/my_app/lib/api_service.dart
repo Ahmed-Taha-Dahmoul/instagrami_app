@@ -47,4 +47,84 @@ class ApiService {
       return false; // Or rethrow the exception
     }
   }
+
+  //bech tfechi profile mta3 user men instagram w tab3thou lel backend
+  static Future<Map<String, dynamic>> getInstagramUserInfoAndSave(String userId,
+      String csrftoken, String sessionId, String xIgAppId, String token) async {
+    String url = "https://www.instagram.com/api/v1/users/$userId/info/";
+    print("haw url");
+    print(url);
+
+    final headers = {
+      "cookie":
+          "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
+      "referer": "https://www.instagram.com/api/v1/users/$userId/info/",
+      "x-csrftoken": csrftoken,
+      "x-ig-app-id": xIgAppId,
+    };
+
+    try {
+      print("haw url");
+      print(url);
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> userInfo = json.decode(response.body);
+
+        // Sending the fetched data to the API endpoint
+        String saveUrl = "${AppConfig.baseUrl}api/save-user-instagram-profile/";
+        final saveResponse = await http.post(
+          Uri.parse(saveUrl),
+          headers: {
+            "Authorization": "Bearer $token",
+            "Content-Type": "application/json",
+          },
+          body: jsonEncode({"user_data": userInfo}),
+        );
+
+        if (saveResponse.statusCode == 200) {
+          return {"success": "User data saved successfully"};
+        } else {
+          return {
+            "error": "Failed to save user data: ${saveResponse.statusCode}",
+            "details": saveResponse.body
+          };
+        }
+      } else {
+        return {
+          "error": "Failed to fetch data: ${response.statusCode}",
+          "details": response.body
+        };
+      }
+    } catch (e) {
+      return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
+
+  //hedhi bech tjib user profile mel backend
+  static Future<Map<String, dynamic>> fetchInstagramUserProfile(
+      String token) async {
+    String url = "${AppConfig.baseUrl}api/get-user-instagram-profile/";
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          "error": "Failed to fetch user profile: ${response.statusCode}",
+          "details": response.body
+        };
+      }
+    } catch (e) {
+      return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
 }

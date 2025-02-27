@@ -18,7 +18,7 @@ class InstagramService {
     String? nextMaxId;
     int maxRetries = 3;
     int retryDelay = 5;
-    int count = 100;
+    int count = 200;
 
     while (true) {
       String url =
@@ -47,7 +47,7 @@ class InstagramService {
           following.addAll(data['users']);
           nextMaxId = data['next_max_id'];
 
-          if (nextMaxId == null && count == 100) {
+          if (nextMaxId == null && count == 200) {
             count = 1;
             break;
           }
@@ -88,7 +88,7 @@ class InstagramService {
     String? nextMaxId;
     int maxRetries = 3;
     int retryDelay = 5;
-    int count = 100;
+    int count = 200;
 
     while (true) {
       String url =
@@ -117,7 +117,7 @@ class InstagramService {
           followers.addAll(data['users']);
           nextMaxId = data['next_max_id'];
 
-          if (nextMaxId == null && count == 100) {
+          if (nextMaxId == null && count == 200) {
             count = 1;
             break;
           }
