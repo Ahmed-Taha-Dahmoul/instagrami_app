@@ -24,6 +24,7 @@ class InstagramUser_data(models.Model):
     
     instagram_username = models.CharField(max_length=255, blank=True)
     instagram_full_name = models.CharField(max_length=255, blank=True)
+    unfollowed = models.BooleanField(default=False ,blank=True)
     instagram_follower_count = models.PositiveIntegerField(default=0)
     instagram_following_count = models.PositiveIntegerField(default=0)
     instagram_total_posts = models.PositiveIntegerField(default=0)

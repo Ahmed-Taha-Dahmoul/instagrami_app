@@ -19,7 +19,7 @@ class InstagramUserDataAdmin(admin.ModelAdmin):
             'fields': ('old_following_list', 'new_following_list', 'followers_list')
         }),
         ("Analysis", {
-            'fields': ('who_remove_follow', 'who_i_follow_he_dont_followback', 'who_i_dont_follow_he_followback')
+            'fields': ('who_remove_follow', 'who_i_follow_he_dont_followback', 'who_i_dont_follow_he_followback' , 'unfollowed')
         }),
         ("Instagram Profile Details", {
             'fields': ('instagram_follower_count', 'instagram_following_count', 'instagram_total_posts', 'instagram_biography', 'instagram_profile_picture_url')

@@ -172,6 +172,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         instagramData = data;
       });
 
+      await _storage.write(key: 'user1_id', value: instagramData!['user1_id']);
+      await _storage.write(
+          key: 'csrftoken', value: instagramData!['csrftoken']);
+      await _storage.write(
+          key: 'session_id', value: instagramData!['session_id']);
+      await _storage.write(
+          key: 'x_ig_app_id', value: instagramData!['x_ig_app_id']);
+
       if (isFirstTimeInstagramConnection &&
           instagramData != null &&
           instagramData!.isNotEmpty) {

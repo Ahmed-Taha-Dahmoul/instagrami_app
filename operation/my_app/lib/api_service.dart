@@ -127,4 +127,21 @@ class ApiService {
       return {"error": "Exception occurred", "details": e.toString()};
     }
   }
+
+  static Future<bool> checkUnfollowStatus(String accessToken) async {
+    final response = await http.get(
+      Uri.parse(
+          '${AppConfig.baseUrl}/api/unfollow-status/'), // Your API endpoint
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['unfollowed']; // Extract the boolean value
+    } else {
+      // Handle errors appropriately (e.g., throw an exception)
+      throw Exception(
+          'Failed to check unfollow status: ${response.statusCode}');
+    }
+  }
 }

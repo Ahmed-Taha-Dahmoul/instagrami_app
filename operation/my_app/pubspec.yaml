@@ -35,6 +35,9 @@ dependencies:
   flutter_inappwebview: ^6.0.0
   shared_preferences: ^2.2.2
   encrypt: ^5.0.0
+  flutter_background_service: ^5.0.5 # Or latest version
+  flutter_background_service_android: ^6.3.0 # Or latest
+  device_info_plus: ^9.0.2 #Or latest
   
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
