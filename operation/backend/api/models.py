@@ -33,3 +33,9 @@ class InstagramUser_data(models.Model):
 
     def __str__(self):
         return str(self.user.username)  # Return the username as a string representation
+
+
+
+
+
+
