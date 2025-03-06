@@ -1,6 +1,6 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth.models import User
-from .models import InstagramUser_data
+from .models import InstagramUser_data, FrontFlags
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
@@ -85,8 +85,13 @@ def check_instagram_status(request):
         instagram_data = InstagramUser_data.objects.filter(user=user).first()
 
         if instagram_data:
-            # Return a success response if Instagram data exists
-            return Response({"connected": True, "message": "Instagram account is connected."}, status=200)
+            # Check if the required fields are present and not empty
+            if all([instagram_data.user1_id, instagram_data.session_id, instagram_data.csrftoken, instagram_data.x_ig_app_id]):
+                # If all fields are filled, return a success response
+                return Response({"connected": True, "message": "Instagram account is connected."}, status=200)
+            else:
+                # If one of the fields is empty, return false with a message
+                return Response({"connected": False, "message": "Instagram account is connected but missing some required data."}, status=200)
         else:
             # Return a response indicating Instagram is not connected
             return Response({"connected": False, "message": "Instagram account is not connected."}, status=200)
@@ -473,6 +478,141 @@ def get_unfollowed_status(request):
 
     except Exception as e:
         print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
+
+
+
+#bech tchouf el followers w folloing a9al mel 20k
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def check_instagram_counts(request):
+    try:
+        # Fetch the InstagramUser_data object for the authenticated user
+        instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+
+        # Calculate the total of followers and following
+        total_count = instagram_user_data.instagram_follower_count + instagram_user_data.instagram_following_count
+
+        # Check if the total count is <= 20,000
+        return Response({
+            "status": total_count <= 20000  # Returns True if total <= 20,000, else False
+        }, status=status.HTTP_200_OK)
+
+    except InstagramUser_data.DoesNotExist:
+        return Response({
+            "error": "Instagram user data not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+#bech traj3elna yekhi awl marra wala le
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_first_time_flag(request):
+    try:
+        # Fetch the FrontFlags object for the authenticated user
+        front_flag = FrontFlags.objects.get(user=request.user)
+
+        return Response({
+            "is_first_time_connected_flag": front_flag.is_first_time_connected_flag
+        }, status=status.HTTP_200_OK)
+
+    except FrontFlags.DoesNotExist:
+        return Response({
+            "error": "Front flag data not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
+
+
+
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def update_first_time_flag(request):
+    try:
+        # Fetch the FrontFlags object for the authenticated user
+        front_flag, created = FrontFlags.objects.get_or_create(user=request.user)
+
+        # Get the new flag value from the request data
+        new_flag_value = request.data.get('is_first_time_connected_flag')
+
+        if new_flag_value is None:
+            return Response({
+                "error": "The 'is_first_time_connected_flag' field is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update the flag with the new value
+        front_flag.is_first_time_connected_flag = new_flag_value
+        front_flag.save()
+
+        return Response({
+            "is_first_time_connected_flag": front_flag.is_first_time_connected_flag
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
+
+
+
+
+
+
+# return if 12 hours passed from last fech true or false
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def check_12_hours_passed(request):
+    try:
+        # Fetch the InstagramUser_data object for the authenticated user
+        user_data = InstagramUser_data.objects.filter(user=request.user).first()
+
+        if not user_data:
+            return Response({
+                "error": "No Instagram data found for this user"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if 12 hours have passed since last_time_fetched
+        has_passed = user_data.has_12_hours_passed_since_last_fetch()
+
+        return Response({"has_12_hours_passed": has_passed}, status=status.HTTP_200_OK)
+
+    except Exception as e:
         return Response({
             "error": "An error occurred",
             "details": str(e)

@@ -181,35 +181,59 @@ class InstagramApiService {
   }
 }
 
-Future<void> fetchAndSendInstagramData(String token, String userId,
-    String sessionId, String csrftoken, String xIgAppId) async {
-  // Fetch Following Data
-  List<dynamic>? followingData = await InstagramService.getInstagramFollowing(
-      userId, sessionId, csrftoken, xIgAppId);
+Future<bool> fetchAndSendfollowing_followers(
+    String token,
+    String userId,
+    String sessionId,
+    String csrftoken,
+    String xIgAppId) async {
+  try {
+    // Fetch Following Data
+    List<dynamic>? followingData = await InstagramService.getInstagramFollowing(
+        userId, sessionId, csrftoken, xIgAppId);
 
-  // Fetch Followers Data
-  List<dynamic>? followersData = await InstagramService.getInstagramFollowers(
-      userId, sessionId, csrftoken, xIgAppId);
+    // Fetch Followers Data
+    List<dynamic>? followersData = await InstagramService.getInstagramFollowers(
+        userId, sessionId, csrftoken, xIgAppId);
 
-  // Send Following Data
-  if (followingData != null) {
-    try {
-      await InstagramApiService.sendFollowingList(token, followingData);
-    } catch (e) {
-      print("Error sending following data: $e");
+    bool followingSuccess = false;
+    bool followersSuccess = false;
+
+    // Send Following Data
+    if (followingData != null) {
+      try {
+        await InstagramApiService.sendFollowingList(token, followingData);
+        followingSuccess = true;
+      } catch (e) {
+        print("Error sending following data: $e");
+      }
+    } else {
+      print("Failed to retrieve following data.");
     }
-  } else {
-    print("Failed to retrieve following data.");
-  }
 
-  // Send Followers Data
-  if (followersData != null) {
-    try {
-      await InstagramApiService.sendFollowerList(token, followersData);
-    } catch (e) {
-      print("Error sending followers data: $e");
+    // Send Followers Data
+    if (followersData != null) {
+      try {
+        await InstagramApiService.sendFollowerList(token, followersData);
+        followersSuccess = true;
+      } catch (e) {
+        print("Error sending followers data: $e");
+      }
+    } else {
+      print("Failed to retrieve followers data.");
     }
-  } else {
-    print("Failed to retrieve followers data.");
+
+    return followingSuccess && followersSuccess;
+  } catch (e) {
+    print("Unexpected error: $e");
+    return false;
   }
 }
+
+
+
+
+
+
+
+

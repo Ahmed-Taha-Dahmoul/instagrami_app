@@ -13,7 +13,7 @@ class ApiService {
         "Content-Type": "application/json",
       },
     );
-
+    print(response.body);
     if (response.statusCode == 200) {
       String encryptedData = jsonDecode(response.body)['encrypted_data'];
       String decryptedData = EncryptionHelper.decryptData(encryptedData);
@@ -49,23 +49,25 @@ class ApiService {
   }
 
   //bech tfechi profile mta3 user men instagram w tab3thou lel backend
-  static Future<Map<String, dynamic>> getInstagramUserInfoAndSave(String userId,
-      String csrftoken, String sessionId, String xIgAppId, String token) async {
+  static Future<bool> getInstagramUserInfoAndSave(
+      String userId,
+      String csrftoken,
+      String sessionId,
+      String xIgAppId,
+      String token) async {
     String url = "https://www.instagram.com/api/v1/users/$userId/info/";
-    print("haw url");
+    print("Request URL:");
     print(url);
 
     final headers = {
-      "cookie":
-          "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
+      "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
       "referer": "https://www.instagram.com/api/v1/users/$userId/info/",
       "x-csrftoken": csrftoken,
       "x-ig-app-id": xIgAppId,
     };
 
     try {
-      print("haw url");
-      print(url);
+      print("Sending request to Instagram...");
       final response = await http.get(Uri.parse(url), headers: headers);
 
       if (response.statusCode == 200) {
@@ -83,23 +85,21 @@ class ApiService {
         );
 
         if (saveResponse.statusCode == 200) {
-          return {"success": "User data saved successfully"};
+          return true; // Successfully saved the user data
         } else {
-          return {
-            "error": "Failed to save user data: ${saveResponse.statusCode}",
-            "details": saveResponse.body
-          };
+          print("Failed to save user data: ${saveResponse.statusCode}");
+          return false; // Failed to save user data
         }
       } else {
-        return {
-          "error": "Failed to fetch data: ${response.statusCode}",
-          "details": response.body
-        };
+        print("Failed to fetch data: ${response.statusCode}");
+        return false; // Failed to fetch user info
       }
     } catch (e) {
-      return {"error": "Exception occurred", "details": e.toString()};
+      print("Exception occurred: $e");
+      return false; // Exception occurred
     }
   }
+
 
   //hedhi bech tjib user profile mel backend
   static Future<Map<String, dynamic>> fetchInstagramUserProfile(
@@ -114,7 +114,7 @@ class ApiService {
           "Content-Type": "application/json",
         },
       );
-
+      print(response.body);
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -131,7 +131,7 @@ class ApiService {
   static Future<bool> checkUnfollowStatus(String accessToken) async {
     final response = await http.get(
       Uri.parse(
-          '${AppConfig.baseUrl}/api/unfollow-status/'), // Your API endpoint
+          '${AppConfig.baseUrl}api/unfollow-status/'), // Your API endpoint
       headers: {'Authorization': 'Bearer $accessToken'},
     );
 
@@ -144,4 +144,42 @@ class ApiService {
           'Failed to check unfollow status: ${response.statusCode}');
     }
   }
+
+  
+
+
+  static Future<bool> checkInstagramCounts(String accessToken) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.baseUrl}api/check-instagram-counts/'), // Your updated API endpoint
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['status']; // Extract the boolean value from the 'status' key
+    } else {
+      // Handle errors appropriately (e.g., throw an exception)
+      throw Exception(
+          'Failed to check Instagram counts: ${response.statusCode}');
+    }
+  }
+
+  
+  static Future<bool> checkIf12HoursPassed(String accessToken) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.baseUrl}api/check-12-hours-passed/'), // Your Django API endpoint
+      headers: {'Authorization': 'Bearer $accessToken'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['has_12_hours_passed']; // Extract the boolean value from the response
+    } else {
+      // Handle errors appropriately (e.g., throw an exception)
+      throw Exception('Failed to check if 12 hours passed: ${response.statusCode}');
+    }
+  }
+
+
+
 }

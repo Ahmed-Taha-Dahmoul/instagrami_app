@@ -67,7 +67,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<String?> _refreshToken(String refreshToken) async {
     final response = await http.post(
-      Uri.parse('${AppConfig.baseUrl}api/token/refresh/'),
+      Uri.parse('${AppConfig.baseUrl}authentication/token/refresh/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'refresh': refreshToken}),
     );
