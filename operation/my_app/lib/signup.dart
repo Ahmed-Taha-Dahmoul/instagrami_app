@@ -260,53 +260,51 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
   }
 
   void _submitForm() async {
-  if (_formKey.currentState?.validate() ?? false) {
-    setState(() {
-      _isLoading = true;
-    });
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() {
+        _isLoading = true;
+      });
 
-    String email = _emailController.text;
-    String password = _passwordController.text;
+      String email = _emailController.text;
+      String password = _passwordController.text;
 
-    final url = Uri.parse('${AppConfig.baseUrl}authentication/register/');
+      final url = Uri.parse('${AppConfig.baseUrl}authentication/register/');
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': email, 'password': password}),
-      );
-
-      if (response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        await _storage.write(key: 'access_token', value: responseData['access']);
-        await _storage.write(key: 'refresh_token', value: responseData['refresh']);
-        widget.isLoggedIn.value = true; // Update ValueNotifier
+      try {
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'username': email, 'password': password}),
+        );
+        if (response.statusCode == 201) {
+          //  || response.statusCode == 200  no need for 200
+          final responseData = jsonDecode(response.body);
+          await _storage.write(
+              key: 'access_token', value: responseData['access']);
+          await _storage.write(
+              key: 'refresh_token', value: responseData['refresh']);
+          widget.isLoggedIn.value = true; // Update ValueNotifier
+          if (mounted) {
+            Navigator.pop(context); //close sign up page
+          }
+        } else {
+          final errorData = jsonDecode(response.body); //added this
+          String errorMessage =
+              errorData['detail'] ?? 'Signup failed'; //added this
+          _showErrorSnackBar(errorMessage); //added this
+        }
+      } catch (error) {
+        _showErrorSnackBar('Error: ${error.toString()}');
+      } finally {
         if (mounted) {
-          Navigator.pop(context); // Close sign-up page
+          //added this
+          setState(() {
+            _isLoading = false;
+          });
         }
-      } else {
-        final errorData = jsonDecode(response.body);
-        String errorMessage = errorData['error'] ?? 'Signup failed';
-
-        // Check if it's a "User already exists" error
-        if (errorData['code'] == 'USER_EXISTS') {
-          errorMessage = "This email is already registered. Try logging in!";
-        }
-
-        _showErrorSnackBar(errorMessage);
-      }
-    } catch (error) {
-      _showErrorSnackBar('Error: ${error.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }
-}
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
