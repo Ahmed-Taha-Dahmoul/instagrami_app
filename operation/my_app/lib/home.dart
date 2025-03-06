@@ -151,8 +151,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               userId, csrftoken, sessionId, xIgAppId, accessToken);
 
           if (userInfoSaved) {
+            
             final userProfile =
                 await ApiService.fetchInstagramUserProfile(accessToken);
+            setState(() {
+              isInstagramConnected = true;
+              instagramUserProfile = userProfile;
+            });
             bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
             if (checkCounts) {
               bool instagram_data_feched_saved =
@@ -189,9 +194,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             }
             }else {
               setState(() {
-                isInstagramConnected = false;
+                
                 isLoading = false;
-                 isMoreThanCount = checkCounts;//here
+                isMoreThanCount = checkCounts;//here
               });
             }
           }else {
@@ -374,7 +379,7 @@ Widget _buildBody() {
             ElevatedButton.icon(
               onPressed: _handleInstagramLoginAndCheckFirstTime,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple[800],
+                backgroundColor: const Color.fromARGB(255, 73, 200, 209),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
