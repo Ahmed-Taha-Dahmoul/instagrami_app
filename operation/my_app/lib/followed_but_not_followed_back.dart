@@ -26,16 +26,6 @@ class _FollowedButNotFollowedBackScreenState
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
-    _loadInstagramData();
-  }
-
-  Future<void> _loadInstagramData() async {
-    String? dataString = await _storage.read(key: 'instagram_data');
-    if (dataString != null) {
-      setState(() {
-        instagramData = json.decode(dataString);
-      });
-    }
   }
 
   Future<void> fetchUsers() async {

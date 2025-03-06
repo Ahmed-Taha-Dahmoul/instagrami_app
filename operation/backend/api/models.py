@@ -4,7 +4,7 @@ from django.utils.timezone import now
 from datetime import timedelta
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from django.utils import timezone
 
 class InstagramUser_data(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)  
@@ -43,14 +43,10 @@ class InstagramUser_data(models.Model):
         """Check if 12 hours have passed since last_time_fetched"""
         return now() >= self.last_time_fetched + timedelta(hours=12)
 
-    def update_follower_count(self, new_follower_count):
-        """
-        Update follower count and last_time_fetched only if the count changes.
-        """
-        if self.instagram_follower_count != new_follower_count:
-            self.instagram_follower_count = new_follower_count
-            self.last_time_fetched = now()
-            self.save()
+    def update_last_fetched_time(self):
+        """Update last_time_fetched to the current time"""
+        self.last_time_fetched = timezone.now()
+        self.save()
 
 
 

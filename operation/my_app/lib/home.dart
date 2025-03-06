@@ -41,82 +41,91 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     String? accessToken = await _secureStorage.read(key: 'access_token');
 
     if (accessToken != null) {
-      await Navigator.push(
+
+      bool success = await Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => InstagramLogin()),
       );
 
-      bool status = await ApiService.checkInstagramStatus(accessToken);
-      if (status) {
-        final data = await ApiService.getInstagramData(accessToken);
+      if (success) {
+          bool status = await ApiService.checkInstagramStatus(accessToken);
+        if (status) {
+          final data = await ApiService.getInstagramData(accessToken);
 
-        String csrftoken = data['csrftoken'];
-        String userId = data['user1_id'];
-        String sessionId = data['session_id'];
-        String xIgAppId = data['x_ig_app_id'];
+          String csrftoken = data['csrftoken'];
+          String userId = data['user1_id'];
+          String sessionId = data['session_id'];
+          String xIgAppId = data['x_ig_app_id'];
 
-        bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
-            userId, csrftoken, sessionId, xIgAppId, accessToken);
+          bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
+              userId, csrftoken, sessionId, xIgAppId, accessToken);
 
-        if (userInfoSaved) {
-          final userProfile =
-              await ApiService.fetchInstagramUserProfile(accessToken);
-          bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
+          if (userInfoSaved) {
+            final userProfile =
+                await ApiService.fetchInstagramUserProfile(accessToken);
+            bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
 
-          if (checkCounts) {
-            bool instagram_data_feched_saved =
-                await fetchAndSendfollowing_followers(
-                    accessToken, userId, sessionId, csrftoken, xIgAppId);
-            if (instagram_data_feched_saved) {
-              bool flagUpdated =
-                  await FirstTimeFlagService.postFirstTimeFlag(accessToken, true);
-              if (flagUpdated) {
-                setState(() {
-                  instagramData = data;
-                  isInstagramConnected = true;
-                  isMoreThanCount = checkCounts;
-                  isLoading = false;
-                  isFirstTimeUser = false;
-                  instagramUserProfile = userProfile;
-                });
-                print("First-time flag updated successfully.");
+            if (checkCounts) {
+              bool instagram_data_feched_saved =
+                  await fetchAndSendfollowing_followers(
+                      accessToken, userId, sessionId, csrftoken, xIgAppId);
+              if (instagram_data_feched_saved) {
+                bool flagUpdated =
+                    await FirstTimeFlagService.postFirstTimeFlag(accessToken, true);
+                if (flagUpdated) {
+                  setState(() {
+                    instagramData = data;
+                    isInstagramConnected = true;
+                    isMoreThanCount = checkCounts;
+                    isLoading = false;
+                    isFirstTimeUser = false;
+                    instagramUserProfile = userProfile;
+                  });
+                  print("First-time flag updated successfully.");
+                } else {
+                  setState(() {
+                    isInstagramConnected = false;
+                    isLoading = false;
+                    errorMessage = "Failed to update first-time flag.";
+                  });
+                  print("Failed to update first-time flag.");
+                }
+                print("Instagram user info saved, profile fetched, counts checked, and data sent if required.");
               } else {
                 setState(() {
                   isInstagramConnected = false;
                   isLoading = false;
-                  errorMessage = "Failed to update first-time flag.";
                 });
-                print("Failed to update first-time flag.");
               }
-              print("Instagram user info saved, profile fetched, counts checked, and data sent if required.");
             } else {
-              setState(() {
-                isInstagramConnected = false;
-                isLoading = false;
-              });
+                setState(() { //here
+                  isInstagramConnected = false;
+                  isLoading = false;
+                  isMoreThanCount = checkCounts;
+                });
             }
           } else {
-              setState(() { //here
-                isInstagramConnected = false;
-                isLoading = false;
-                isMoreThanCount = checkCounts;
-              });
+            setState(() {
+              isInstagramConnected = false;
+              isLoading = false;
+              errorMessage = "Failed to save Instagram user info.";
+            });
+            print("Failed to save Instagram user info.");
           }
         } else {
           setState(() {
             isInstagramConnected = false;
             isLoading = false;
-            errorMessage = "Failed to save Instagram user info.";
+            errorMessage = "Failed to check Instagram Status.";
           });
-          print("Failed to save Instagram user info.");
         }
-      } else {
-        setState(() {
-          isInstagramConnected = false;
-          isLoading = false;
-          errorMessage = "Failed to check Instagram Status.";
-        });
-      }
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+    }
+
+      
     } else {
       setState(() {
         isLoading = false;
@@ -144,6 +153,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         String userId = data['user1_id'];
         String sessionId = data['session_id'];
         String xIgAppId = data['x_ig_app_id'];
+
+        await _secureStorage.write(key: 'user1_id', value: data['user1_id']);
+        await _secureStorage.write(
+            key: 'csrftoken', value: data['csrftoken']);
+        await _secureStorage.write(
+            key: 'session_id', value: data['session_id']);
+        await _secureStorage.write(
+            key: 'x_ig_app_id', value: data['x_ig_app_id']);
 
         final lastfech = await ApiService.checkIf12HoursPassed(accessToken);
         if (lastfech) {
@@ -209,8 +226,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           final userProfile =
               await ApiService.fetchInstagramUserProfile(accessToken);
           bool checkCounts = await ApiService.checkInstagramCounts(accessToken); //here
-          print("sssssssssssssssssssssssssssssssssss");
-          print(checkCounts);
           setState(() {
             instagramUserProfile = userProfile;
             isInstagramConnected = true;
@@ -236,11 +251,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   @override
-  void initState() {
-    super.initState();
-    _initialSetup();
+void initState() {
+  super.initState();
+  _initializeApp();
 
-    _profileAnimationController = AnimationController(
+  _profileAnimationController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 2500),
     )..repeat(reverse: true);
@@ -250,341 +265,353 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       parent: _profileAnimationController,
       curve: Curves.easeInOut,
     ));
-  }
+}
 
-    Future<void> _initialSetup() async {
-      String? accessToken = await _secureStorage.read(key: 'access_token');
-      if (accessToken != null) {
-        await _checkFirstTimeFlag(accessToken);
-        if(!isFirstTimeUser){
-           await _handleInstagramReconnection();
-        }
-      }
+Future<void> _initializeApp() async {
+  setState(() {
+    isLoading = true; // Show the loading indicator while checking the token.
+  });
+
+  String? accessToken = await _secureStorage.read(key: 'access_token');
+  if (accessToken != null) {
+    await _checkFirstTimeFlag(accessToken);
+    if (!isFirstTimeUser) {
+      await _handleInstagramReconnection();
     }
-
-  @override
-  void dispose() {
-    _profileAnimationController.dispose();
-    super.dispose();
+  } else {
+    setState(() {
+      isLoading = false; // Stop loading when token check is complete.
+    });
+    return; // Exit early if no access token found.
   }
+
+  setState(() {
+    isLoading = false; // Stop loading after completing all checks.
+  });
+}
+
+@override
+void dispose() {
+  _profileAnimationController.dispose();
+  super.dispose();
+}
 
 Widget _buildBody() {
-    if (isLoading) {
-      return Center(child: CircularProgressIndicator());
-    }
+  if (isLoading) {
+    return Center(child: CircularProgressIndicator()); // Show loading while checking token.
+  }
 
-    if (isInstagramConnected) {
-      // Connected
-      if (isMoreThanCount) {
-        // Connected and isMoreThanCount is true: Show profile and cards
-        return Column(
-          children: [
-            _buildUserProfile(),
-            SizedBox(height: 20),
-            if (errorMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  errorMessage,
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 25,
-                  crossAxisSpacing: 25,
-                  primary: false,
-                  children: [
-                    _buildCard(
-                      'assets/icons/unfollow.png',
-                      'Who Unfollowed You',
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => UnfollowedYouScreen()),
-                        );
-                      },
-                    ),
-                    _buildCard(
-                      'assets/icons/not_following_you.png',
-                      'Who is not following you back',
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                FollowedButNotFollowedBackScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildCard(
-                      'assets/icons/not_following.png',
-                      'Who you are not following',
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                NotFollowedButFollowingMeScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      } else {
-        // Connected and isMoreThanCount is false: Show message, profile, and button
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-             // Wrap in Container for styling
-            if (errorMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  errorMessage,
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            Container(
-              padding: EdgeInsets.all(16),
-              margin: EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
+  if (isInstagramConnected) {
+    // Instagram is connected
+    if (isMoreThanCount) {
+      // Connected and the account has more than 20k followers/following
+      return Column(
+        children: [
+          _buildUserProfile(),
+          SizedBox(height: 20),
+          if (errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
               child: Text(
-                "The account you tried to connect has more than 20k followers and following. Try to connect with another account.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  letterSpacing: 0.5,
-                ),
+                errorMessage,
+                style: TextStyle(color: Colors.red),
               ),
             ),
-            _buildUserProfile(),
-            SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _handleInstagramLoginAndCheckFirstTime,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 73, 200, 209),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                elevation: 2,
-                textStyle: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: GridView.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 25,
+                crossAxisSpacing: 25,
+                primary: false,
+                children: [
+                  _buildCard(
+                    'assets/icons/unfollow.png',
+                    'Who Unfollowed You',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => UnfollowedYouScreen()),
+                      );
+                    },
+                  ),
+                  _buildCard(
+                    'assets/icons/not_following_you.png',
+                    'Who is not following you back',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              FollowedButNotFollowedBackScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildCard(
+                    'assets/icons/not_following.png',
+                    'Who you are not following',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              NotFollowedButFollowingMeScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-              icon: Icon(Icons.login), // Add a login icon
-              label: Text("Login with Instagram"),
             ),
-          ],
-        );
-      }
+          ),
+        ],
+      );
     } else {
-      // Not connected: Show ONLY login button and error message
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (errorMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  errorMessage,
-                  style: TextStyle(color: Colors.red),
-                ),
+      // Account connected but has more than 20k followers/following
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Wrap in Container for styling
+          if (errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                errorMessage,
+                style: TextStyle(color: Colors.red),
               ),
-            ElevatedButton(
-              onPressed: _handleInstagramLoginAndCheckFirstTime,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple[800],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                elevation: 2,
-                textStyle: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              child: Text("Login with Instagram"),
             ),
-          ],
-        ),
+          Container(
+            padding: EdgeInsets.all(16),
+            margin: EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Text(
+              "The account you tried to connect has more than 20k followers and following. Try to connect with another account.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          _buildUserProfile(),
+          SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _handleInstagramLoginAndCheckFirstTime,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 73, 200, 209),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              elevation: 2,
+              textStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            icon: Icon(Icons.login), // Add a login icon
+            label: Text("Login with Instagram"),
+          ),
+        ],
       );
     }
-  }
-
-  Widget _buildUserProfile() {
-    if (instagramUserProfile == null) {
-      return CircularProgressIndicator();
-    }
-
-    final userData = instagramUserProfile!['user_data'] as Map<String, dynamic>?;
-
-    if (userData == null) {
-        return Text("Error: User data not found.");
-    }
-
-    final profilePictureUrl = userData['instagram_profile_picture_url'] as String?;
-    final username = userData['instagram_username'] as String? ?? 'No Username';
-    final fullName = userData['instagram_full_name'] as String? ?? 'No Name';
-    final totalPosts = userData['instagram_total_posts'] as int? ?? 0;
-    final followerCount = userData['instagram_follower_count'] as int? ?? 0;
-    final followingCount = userData['instagram_following_count'] as int? ?? 0;
-
-
-    return ScaleTransition(
-      scale: _profileScaleAnimation,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
-                spreadRadius: 1,
-                blurRadius: 5,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundImage: profilePictureUrl != null
-                    ? NetworkImage(profilePictureUrl)
-                    : null,
-                radius: 40,
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "@$username",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      fullName,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    ),
-                    SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildStatColumn(totalPosts, "posts"),
-                        _buildStatColumn(followerCount, "followers"),
-                        _buildStatColumn(followingCount, "following"),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatColumn(int value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value.toString(),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCard(String imagePath, String title, VoidCallback onTap) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 4,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(imagePath, width: 64, height: 64),
-            SizedBox(height: 12),
+  } else {
+    // Not connected: Show ONLY login button and error message
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (errorMessage.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: const EdgeInsets.all(8.0),
               child: Text(
-                title,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
+                errorMessage,
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ElevatedButton(
+            onPressed: _handleInstagramLoginAndCheckFirstTime,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple[800],
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              elevation: 2,
+              textStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            child: Text("Login with Instagram"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _buildUserProfile() {
+  if (instagramUserProfile == null) {
+    return CircularProgressIndicator();
+  }
+
+  final userData = instagramUserProfile!['user_data'] as Map<String, dynamic>?;
+
+  if (userData == null) {
+    return Text("Error: User data not found.");
+  }
+
+  final profilePictureUrl = userData['instagram_profile_picture_url'] as String?;
+  final username = userData['instagram_username'] as String? ?? 'No Username';
+  final fullName = userData['instagram_full_name'] as String? ?? 'No Name';
+  final totalPosts = userData['instagram_total_posts'] as int? ?? 0;
+  final followerCount = userData['instagram_follower_count'] as int? ?? 0;
+  final followingCount = userData['instagram_following_count'] as int? ?? 0;
+
+  return ScaleTransition(
+    scale: _profileScaleAnimation,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: profilePictureUrl != null
+                  ? NetworkImage(profilePictureUrl)
+                  : null,
+              radius: 40,
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "@$username",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    fullName,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildStatColumn(totalPosts, "posts"),
+                      _buildStatColumn(followerCount, "followers"),
+                      _buildStatColumn(followingCount, "following"),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Home"),
-        actions: [
+Widget _buildStatColumn(int value, String label) {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        value.toString(),
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      Text(
+        label,
+        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+      ),
+    ],
+  );
+}
+
+Widget _buildCard(String imagePath, String title, VoidCallback onTap) {
+  return Card(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    elevation: 4,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(imagePath, width: 64, height: 64),
+          SizedBox(height: 12),
           Padding(
-            padding: EdgeInsets.only(right: 20),
-            child: Row(
-              children: [
-                Text(
-                  "Instagram account: ",
-                  style: TextStyle(
-                    color: isInstagramConnected ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Icon(
-                  isInstagramConnected ? Icons.check_circle : Icons.cancel,
-                  color: isInstagramConnected ? Colors.green : Colors.red,
-                  size: 20,
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              title,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
       ),
-      body: _buildBody(),
-    );
-  }
+    ),
+  );
+}
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text("Home"),
+      actions: [
+        Padding(
+          padding: EdgeInsets.only(right: 20),
+          child: Row(
+            children: [
+              Text(
+                "Instagram account: ",
+                style: TextStyle(
+                  color: isInstagramConnected ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              Icon(
+                isInstagramConnected ? Icons.check_circle : Icons.cancel,
+                color: isInstagramConnected ? Colors.green : Colors.red,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    body: _buildBody(),
+  );
+}
 }

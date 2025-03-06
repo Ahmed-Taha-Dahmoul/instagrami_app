@@ -187,6 +187,11 @@ def save_fetched_followers(request):
 
         # Directly save the followers list as JSON in the database
         instagram_data.followers_list = followers_list
+
+        # Update the last_time_fetched field to the current time
+        instagram_data.update_last_fetched_time()
+
+        # Save the changes to the database
         instagram_data.save()
 
         # Update follow relationships (you can keep these functions if needed)
@@ -220,6 +225,7 @@ def save_fetched_following(request):
         instagram_data.old_following_list = instagram_data.new_following_list
         instagram_data.new_following_list = following_list  # Saving the complete list
 
+        instagram_data.update_last_fetched_time()
         # Directly save the following list as JSON in the database
         instagram_data.save()
 

