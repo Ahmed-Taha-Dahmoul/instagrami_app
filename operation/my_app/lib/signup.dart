@@ -4,12 +4,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config.dart'; // Importing base URL config
-// import 'home.dart'; // Remove this import
 
 class SignupPage extends StatefulWidget {
-  final ValueNotifier<bool> isLoggedIn; // Add this
+  final ValueNotifier<bool> isLoggedIn;
 
-  SignupPage({required this.isLoggedIn}); // Add to constructor
+  SignupPage({required this.isLoggedIn});
 
   @override
   _SignupPageState createState() => _SignupPageState();
@@ -111,7 +110,6 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
                           });
                         },
                         validator: (value) {
-                          // Added validator here
                           if (value?.isEmpty ?? true) {
                             return 'Please enter a password';
                           }
@@ -192,6 +190,43 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
     );
   }
 
+   Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String hintText,
+    required bool isPasswordVisible,
+    required VoidCallback toggleVisibility,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: !isPasswordVisible,
+      validator: validator,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: const Icon(Icons.lock, color: Color(0xFFCF8360)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.9),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFFCF8360), width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+        suffixIcon: IconButton(
+          icon: Icon(
+            isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+            color: const Color(0xFFCF8360),
+          ),
+          onPressed: toggleVisibility,
+        ),
+      ),
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -211,50 +246,11 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          // Added focusedBorder
           borderRadius: BorderRadius.circular(30),
           borderSide: const BorderSide(color: Color(0xFFCF8360), width: 2),
         ),
         contentPadding:
             const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-      ),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required TextEditingController controller,
-    required String hintText,
-    required bool isPasswordVisible,
-    required VoidCallback toggleVisibility,
-    String? Function(String?)? validator, // Make validator optional
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: !isPasswordVisible,
-      validator: validator, // Use the passed validator
-      decoration: InputDecoration(
-        hintText: hintText,
-        prefixIcon: const Icon(Icons.lock, color: Color(0xFFCF8360)),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.9),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          // Added focusedBorder
-          borderRadius: BorderRadius.circular(30),
-          borderSide: const BorderSide(color: Color(0xFFCF8360), width: 2),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-        suffixIcon: IconButton(
-          icon: Icon(
-            isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-            color: const Color(0xFFCF8360),
-          ),
-          onPressed: toggleVisibility,
-        ),
       ),
     );
   }
@@ -277,27 +273,25 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
           body: jsonEncode({'username': email, 'password': password}),
         );
         if (response.statusCode == 201) {
-          //  || response.statusCode == 200  no need for 200
           final responseData = jsonDecode(response.body);
           await _storage.write(
               key: 'access_token', value: responseData['access']);
           await _storage.write(
               key: 'refresh_token', value: responseData['refresh']);
-          widget.isLoggedIn.value = true; // Update ValueNotifier
+          widget.isLoggedIn.value = true;
+
           if (mounted) {
-            Navigator.pop(context); //close sign up page
+            _showSuccessDialog();
           }
         } else {
-          final errorData = jsonDecode(response.body); //added this
-          String errorMessage =
-              errorData['detail'] ?? 'Signup failed'; //added this
-          _showErrorSnackBar(errorMessage); //added this
+          final errorData = jsonDecode(response.body);
+          String errorMessage = errorData['detail'] ?? 'Signup failed';
+          _showErrorSnackBar(errorMessage);
         }
       } catch (error) {
         _showErrorSnackBar('Error: ${error.toString()}');
       } finally {
         if (mounted) {
-          //added this
           setState(() {
             _isLoading = false;
           });
@@ -305,6 +299,94 @@ class _SignupPageState extends State<SignupPage> with TickerProviderStateMixin {
       }
     }
   }
+
+  void _showSuccessDialog() {
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: Colors.black.withOpacity(0.5),
+    transitionDuration: Duration(milliseconds: 500),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return ScaleTransition(
+        scale: animation,
+        child: Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.85,
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      height: 60,
+                      width: 60,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFCF8360)),
+                        strokeWidth: 6,
+                      ),
+                    ),
+                    Icon(Icons.check_circle, color: Color(0xFFCF8360), size: 50),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Text(
+                  "Account Created!",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFCF8360),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Your account has been successfully created. Get ready to explore amazing features!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close success screen
+                    Navigator.pop(context); // Close signup page
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 84, 189, 98),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  ),
+                  child: Text("Continue"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  // Auto close after 3 seconds
+  Future.delayed(Duration(seconds: 3), () {
+    if (Navigator.of(context).canPop()) Navigator.pop(context);
+    if (Navigator.of(context).canPop()) Navigator.pop(context);
+  });
+}
+
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(

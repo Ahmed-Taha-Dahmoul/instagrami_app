@@ -240,54 +240,143 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   void _submitForm() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true;
-      });
+  if (_formKey.currentState?.validate() ?? false) {
+    setState(() {
+      _isLoading = true;
+    });
 
-      String email = _emailController.text;
-      String password = _passwordController.text;
+    String email = _emailController.text;
+    String password = _passwordController.text;
 
-      final url = Uri.parse('${AppConfig.baseUrl}authentication/login/');
+    final url = Uri.parse('${AppConfig.baseUrl}authentication/login/');
 
-      try {
-        final response = await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'username': email, 'password': password}),
-        );
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': email, 'password': password}),
+      );
 
-        if (response.statusCode == 200) {
-          final responseData = jsonDecode(response.body);
-          final accessToken = responseData['access'];
-          final refreshToken = responseData['refresh'];
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final accessToken = responseData['access'];
+        final refreshToken = responseData['refresh'];
 
-          await _storage.write(key: 'access_token', value: accessToken);
-          await _storage.write(key: 'refresh_token', value: refreshToken);
+        await _storage.write(key: 'access_token', value: accessToken);
+        await _storage.write(key: 'refresh_token', value: refreshToken);
 
-          // Update the ValueNotifier
-          widget.isLoggedIn.value = true;
+        // Update the ValueNotifier
+        widget.isLoggedIn.value = true;
 
-          if (mounted) {
-            Navigator.pop(
-                context); // Close the login page, don't navigate to HomePage
-          }
-        } else {
-          final errorData = jsonDecode(response.body);
-          String errorMessage = errorData['detail'] ?? 'Login failed';
-          _showErrorSnackBar(errorMessage);
-        }
-      } catch (error) {
-        _showErrorSnackBar('Error: ${error.toString()}');
-      } finally {
+        // Call the success dialog after successful login
         if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
+          _showLoginSuccessDialog();
         }
+      } else {
+        final errorData = jsonDecode(response.body);
+        String errorMessage = errorData['detail'] ?? 'Login failed';
+        _showErrorSnackBar(errorMessage);
+      }
+    } catch (error) {
+      _showErrorSnackBar('Error: ${error.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
+}
+
+
+  void _showLoginSuccessDialog() {
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: Colors.black.withOpacity(0.5),
+    transitionDuration: Duration(milliseconds: 500),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return ScaleTransition(
+        scale: animation,
+        child: Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.85,
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      height: 60,
+                      width: 60,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFCF8360)),
+                        strokeWidth: 6,
+                      ),
+                    ),
+                    Icon(Icons.check_circle, color: Color(0xFFCF8360), size: 50),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Text(
+                  "Login Successful!",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFCF8360),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Welcome back! Redirecting you to your dashboard...",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close success screen
+                    Navigator.pop(context); // Close login page
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 79, 190, 103),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  ),
+                  child: Text("Continue"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  // Auto close after 2 seconds
+  Future.delayed(Duration(seconds: 2), () {
+    if (Navigator.of(context).canPop()) Navigator.pop(context);
+    if (Navigator.of(context).canPop()) Navigator.pop(context);
+  });
+}
+
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
