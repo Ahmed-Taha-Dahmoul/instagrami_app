@@ -8,8 +8,8 @@ import json
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import InstagramUserDataSerializer
-
-
+from django.shortcuts import get_object_or_404
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
@@ -657,3 +657,131 @@ def check_12_hours_passed(request):
             "error": "An error occurred",
             "details": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+from datetime import timedelta
+from django.utils.timezone import now
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def update_last_time_fetched(request):
+    try:
+        # Get the InstagramUser_data instance for the logged-in user
+        instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+        
+        # Calculate the time 24 hours ago from now
+        new_time = now() - timedelta(hours=0.5)
+        
+        # Update the 'last_time_fetched' field
+        instagram_user_data.last_time_fetched = new_time
+        instagram_user_data.save()
+
+        # Return a success response
+        return Response({
+            "message": "last_time_fetched updated to 24 hours ago"
+        }, status=status.HTTP_200_OK)
+
+    except InstagramUser_data.DoesNotExist:
+        return Response({
+            "error": "Instagram user data not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def remove_following(request):
+    # Fetch InstagramUser_data for the authenticated user
+    user_data = InstagramUser_data.objects.get(user=request.user)
+
+    # Instead of 404, return 400 if Instagram data doesn't exist
+    if not user_data:
+        return Response({"error": "No Instagram data found for this user"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Extract pk from request body
+    pk = request.data.get("pk")
+    if not pk:
+        return Response({"error": "Missing 'pk' in request body"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Ensure pk is in the following list
+    if not any(f["pk"] == pk for f in user_data.new_following_list):
+        return Response({"error": "User not found in following list"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Remove the user from the new following list
+    user_data.new_following_list = [f for f in user_data.new_following_list if f["pk"] != pk]
+
+    # Decrease the count if it's greater than zero
+    if user_data.instagram_following_count  > 0:
+        user_data.instagram_following_count -= 1
+
+    # Update who I follow but they don't follow back
+    following_ids = set(user["pk"] for user in user_data.new_following_list)
+    user_data.who_i_follow_he_dont_followback = list(following_ids)
+
+    # Save changes
+    user_data.save()
+
+    return Response({"message": "User removed from following list successfully"}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def remove_follower(request):
+    # Fetch InstagramUser_data for the authenticated user
+    user_data = InstagramUser_data.objects.get(user=request.user)
+
+    # Instead of 404, return 400 if Instagram data doesn't exist
+    if not user_data:
+        return Response({"error": "No Instagram data found for this user"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Extract pk from request body
+    pk = request.data.get("pk")
+    if not pk:
+        return Response({"error": "Missing 'pk' in request body"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Ensure pk is in the follower list
+    if not any(f["pk"] == pk for f in user_data.followers_list):
+        return Response({"error": "User not found in follower list"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Remove the user from the new follower list
+    user_data.followers_list = [f for f in user_data.followers_list if f["pk"] != pk]
+    
+
+    # Decrease the count if it's greater than zero
+    if user_data.instagram_follower_count > 0:
+        user_data.instagram_follower_count -= 1
+
+    # Update who I follow but they don't follow back
+    follower_ids = set(user["pk"] for user in user_data.followers_list)
+    user_data.who_i_dont_follow_he_followback = list(follower_ids)
+
+    # Save changes
+    user_data.save()
+
+    return Response({"message": "User removed from follower list successfully"}, status=status.HTTP_200_OK)

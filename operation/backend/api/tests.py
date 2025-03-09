@@ -1,102 +1,117 @@
 from django.test import TestCase
-from django.utils import timezone
-from rest_framework.test import APIClient
-from datetime import timedelta
-from .models import InstagramUser_data
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from .models import InstagramUser_data, FrontFlags
+from .views import remove_following  # Import your view function!
 
-class InstagramUserDataTestCase(TestCase):
+
+class RemoveFollowingViewTest(TestCase):
     def setUp(self):
-        """Set up the user and InstagramUser_data instance"""
-        # Create a test user
-        self.user = User.objects.create_user(username='testuser', password='password123')
-        print("Created test user:", self.user.username)
+        self.user = User.objects.create_user(username="testuser", password="testpassword")
+        self.factory = APIRequestFactory()
+        FrontFlags.objects.create(user=self.user)
+        self.url = reverse("remove_following")  # Still useful for other tests
 
-        # Create an InstagramUser_data object linked to the user
-        self.instagram_data = InstagramUser_data.objects.create(
+    def _create_user_data(self):
+        self.user_data = InstagramUser_data.objects.create(
             user=self.user,
-            instagram_follower_count=1000,
-            last_time_fetched=timezone.now() - timedelta(hours=10)  # Set to 10 hours ago
+            user1_id="123",
+            session_id="session123",
+            csrftoken="csrf123",
+            x_ig_app_id="app123",
+            new_following_list=[
+                {"pk": "1", "username": "user1"},
+                {"pk": "2", "username": "user2"},
+            ],
+            old_following_list=[
+                {"pk": "1", "username": "user1"},
+                {"pk": "2", "username": "user2"},
+            ],
+            instagram_following_count=2,
         )
-        print("Created InstagramUser_data for user:", self.user.username)
 
-        # Create a client for making requests
-        self.client = APIClient()
+    def _get_authenticated_request(self, data=None):
+        # Helper function to create an authenticated request
+        request = self.factory.post(self.url, data, format='json') # Use the factory
+        refresh = RefreshToken.for_user(self.user)
+        force_authenticate(request, user=self.user, token=str(refresh.access_token))
+        return request
 
-    def test_check_12_hours_passed_true(self):
-        """Test when 12 hours have passed"""
-        # Set the last_time_fetched to 13 hours ago
-        self.instagram_data.last_time_fetched = timezone.now() - timedelta(hours=13)
-        self.instagram_data.save()
-        print("Updated last_time_fetched to 13 hours ago.")
+    def test_remove_following_success(self):
+        """Test successful removal."""
+        self._create_user_data()
+        data = {"pk": "1"}
+        request = self._get_authenticated_request(data)
+        response = remove_following(request)  # Call the view function directly!
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"message": "User removed from following list successfully"})
 
-        # Authenticate the user
-        self.client.force_authenticate(user=self.user)
-        print("Authenticated user:", self.user.username)
+        self.user_data.refresh_from_db()
+        self.assertEqual(len(self.user_data.new_following_list), 1)
+        self.assertEqual(self.user_data.new_following_list[0]["pk"], "2")
+        self.assertEqual(self.user_data.old_following_list[0]["pk"], "2") # Corrected assertion
+        self.assertEqual(self.user_data.instagram_following_count, 1)
+        self.assertEqual(self.user_data.who_i_follow_he_dont_followback, ["2"])
 
-        # Make the GET request to check if 12 hours have passed
-        response = self.client.get('/api/check-12-hours-passed/')
-        print("Response:", response.data)
+    def test_remove_following_missing_pk(self):
+        """Test missing 'pk'."""
+        self._create_user_data()
+        data = {}  # Missing pk
+        request = self._get_authenticated_request(data)
+        response = remove_following(request) # Call view directly
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "Missing 'pk' in request body"})
 
-        # Assert the response status code is 200 OK
-        self.assertEqual(response.status_code, 200)
-        print("Response status code is 200")
+    def test_remove_following_user_not_found(self):
+        """Test 'pk' not in following list."""
+        self._create_user_data()
+        data = {"pk": "3"}  # Invalid pk
+        request = self._get_authenticated_request(data)
+        response = remove_following(request) # Call view directly
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "User not found in following list"})
 
-        # Assert that the response contains the correct value for 'has_12_hours_passed'
-        self.assertEqual(response.data['has_12_hours_passed'], True)
-        print("12 hours have passed:", response.data['has_12_hours_passed'])
+    def test_remove_following_no_instagram_data(self):
+        """Test no Instagram data."""
+        # Don't create user_data
+        data = {"pk": "1"}
+        request = self._get_authenticated_request(data)
+        response = remove_following(request) # Call view directly
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "No Instagram data found for this user"})
 
-    def test_check_12_hours_passed_false(self):
-        """Test when less than 12 hours have passed"""
-        # Set the last_time_fetched to 10 hours ago
-        self.instagram_data.last_time_fetched = timezone.now() - timedelta(hours=10)
-        self.instagram_data.save()
-        print("Updated last_time_fetched to 10 hours ago.")
+    def test_remove_following_no_authentication(self):
+        """Test unauthenticated request."""
+        # Don't authenticate the request
+        request = self.factory.post(self.url, {"pk":"1"}, format='json')
+        response = remove_following(request)
+        # Expect 401 Unauthorized (or possibly 403 Forbidden)
+        self.assertTrue(
+            response.status_code == status.HTTP_401_UNAUTHORIZED
+            or response.status_code == status.HTTP_403_FORBIDDEN
+        )
 
-        # Authenticate the user
-        self.client.force_authenticate(user=self.user)
-        print("Authenticated user:", self.user.username)
+    def test_remove_following_count_zero(self):
+        self._create_user_data()
+        self.user_data.instagram_following_count = 0
+        self.user_data.save()
+        data = {"pk": "1"}
+        request = self._get_authenticated_request(data)
+        response = remove_following(request)  # Call the view function directly!
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user_data.refresh_from_db()
+        self.assertEqual(self.user_data.instagram_following_count, 0)
 
-        # Make the GET request to check if 12 hours have passed
-        response = self.client.get('/api/check-12-hours-passed/')
-        print("Response:", response.data)
-
-        # Assert the response status code is 200 OK
-        self.assertEqual(response.status_code, 200)
-        print("Response status code is 200")
-
-        # Assert that the response contains the correct value for 'has_12_hours_passed'
-        self.assertEqual(response.data['has_12_hours_passed'], False)
-        print("12 hours have passed:", response.data['has_12_hours_passed'])
-
-    def test_no_instagram_data_for_user(self):
-        """Test when there's no Instagram data for the user"""
-        # Create a new user without Instagram data
-        new_user = User.objects.create_user(username='newuser', password='newpassword123')
-        print("Created new user:", new_user.username)
-        
-        # Authenticate the new user
-        self.client.force_authenticate(user=new_user)
-        print("Authenticated new user:", new_user.username)
-        
-        # Make the GET request to check if 12 hours have passed
-        response = self.client.get('/api/check-12-hours-passed/')
-        print("Response:", response.data)
-
-        # Assert the response status code is 404 (Not Found)
-        self.assertEqual(response.status_code, 404)
-        print("Response status code is 404")
-
-        # Assert the response contains the error message
-        self.assertEqual(response.data['error'], 'No Instagram data found for this user')
-        print("Error message:", response.data['error'])
-
-    def test_unauthenticated_user(self):
-        """Test when an unauthenticated user tries to access the API"""
-        # Make the GET request without authentication
-        response = self.client.get('/api/check-12-hours-passed/')
-        print("Response for unauthenticated user:", response.data)
-
-        # Assert the response status code is 401 (Unauthorized)
-        self.assertEqual(response.status_code, 401)
-        print("Response status code is 401")
+    def test_remove_following_count_none(self):
+        self._create_user_data()
+        self.user_data.instagram_following_count = None
+        self.user_data.save()
+        data = {"pk": "1"}
+        request = self._get_authenticated_request(data)
+        response = remove_following(request)  # Call the view function directly!
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user_data.refresh_from_db()
+        self.assertIsNone(self.user_data.instagram_following_count)

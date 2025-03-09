@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           String userId = data['user1_id'];
           String sessionId = data['session_id'];
           String xIgAppId = data['x_ig_app_id'];
-
+          print("dddddddddddddddddddddddddddddddddddddddddddd");
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
               userId, csrftoken, sessionId, xIgAppId, accessToken);
 
@@ -64,6 +64,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             final userProfile =
                 await ApiService.fetchInstagramUserProfile(accessToken);
             bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
+
+            setState(() {
+              isInstagramConnected = true;
+              instagramUserProfile = userProfile;
+            });
 
             if (checkCounts) {
               bool instagram_data_feched_saved =
@@ -79,12 +84,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     isMoreThanCount = checkCounts;
                     isLoading = false;
                     isFirstTimeUser = false;
-                    instagramUserProfile = userProfile;
                   });
                   print("First-time flag updated successfully.");
                 } else {
                   setState(() {
-                    isInstagramConnected = false;
                     isLoading = false;
                     errorMessage = "Failed to update first-time flag.";
                   });
@@ -93,13 +96,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 print("Instagram user info saved, profile fetched, counts checked, and data sent if required.");
               } else {
                 setState(() {
-                  isInstagramConnected = false;
+                  
                   isLoading = false;
                 });
               }
             } else {
                 setState(() { //here
-                  isInstagramConnected = false;
                   isLoading = false;
                   isMoreThanCount = checkCounts;
                 });
@@ -161,33 +163,38 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             key: 'session_id', value: data['session_id']);
         await _secureStorage.write(
             key: 'x_ig_app_id', value: data['x_ig_app_id']);
-        
+        print("afterr getting data ");
         final lastfech = await ApiService.checkIf12HoursPassed(accessToken);
         if (lastfech) {
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
               userId, csrftoken, sessionId, xIgAppId, accessToken);
-
+          
           if (userInfoSaved) {
             
             final userProfile =
                 await ApiService.fetchInstagramUserProfile(accessToken);
+            
             setState(() {
               isInstagramConnected = true;
               instagramUserProfile = userProfile;
             });
             bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
+           
+            
             if (checkCounts) {
+              
+              bool unfollowstatus = await ApiService.checkUnfollowStatus(accessToken);
 
-              bool unfollowstatus = await ApiService.getUnfollowStatus(accessToken);
-
+              // ignore: unused_local_variable
+              bool updatelasttime = await ApiService.updateLastTimeFetched(accessToken);
+              print(unfollowstatus);
               if (unfollowstatus) {
-
-                  var response = await ApiService.changeUnfollowStatus(accessToken, false);
-                  print(response);
                   bool instagram_data_feched_saved =
                       await fetchAndSendfollowing_followers(
                           accessToken, userId, sessionId, csrftoken, xIgAppId);
                   if (instagram_data_feched_saved) {
+                    var response = await ApiService.changeUnfollowStatus(accessToken, false);
+                    print(response);
                     bool flagUpdated = await FirstTimeFlagService.postFirstTimeFlag(
                         accessToken, false);
                     if (flagUpdated) {
@@ -206,6 +213,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         isInstagramConnected = false;
                         isLoading = false;
                         errorMessage = "Failed to update first-time flag.";
+                        isMoreThanCount = checkCounts;
                       });
                       print("Failed to update first-time flag.");
                     }
@@ -214,10 +222,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   setState(() {
                     isInstagramConnected = false;
                     isLoading = false;
+                    isMoreThanCount = checkCounts;
                   });
                 }
               }else {
                 isLoading = false;
+                isMoreThanCount = checkCounts;
               }
               
             }else {

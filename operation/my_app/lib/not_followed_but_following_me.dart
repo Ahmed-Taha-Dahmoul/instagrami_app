@@ -140,6 +140,39 @@ class _NotFollowedButFollowingMeScreenState
     }
   }
 
+
+
+   Future<Map<String, dynamic>> _removeFollower(
+    String pk) async {
+    String url = "${AppConfig.baseUrl}api/remove-follower/";
+    String? token = await _secureStorage.read(key: 'access_token');
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "pk": pk, // Send the pk in the request body
+        }),
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          "error": "Failed to remove following: ${response.statusCode}",
+          "details": response.body
+        };
+      }
+    } catch (e) {
+      return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
+
   Future<Future<Object?>> _showRemoveConfirmationDialog(
       String userId, String username) async {
     return showGeneralDialog(
@@ -203,6 +236,7 @@ class _NotFollowedButFollowingMeScreenState
                   onPressed: () {
                     Navigator.of(context).pop();
                     _removeUser(userId); // Corrected function call
+                    _removeFollower(userId);
                   },
                 ),
               ],

@@ -133,6 +133,38 @@ class _FollowedButNotFollowedBackScreenState
     }
   }
 
+
+  Future<Map<String, dynamic>> _removeFollowing(
+    String pk) async {
+    String url = "${AppConfig.baseUrl}api/remove-following/";
+    String? token = await _secureStorage.read(key: 'access_token');
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "pk": pk, // Send the pk in the request body
+        }),
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          "error": "Failed to remove following: ${response.statusCode}",
+          "details": response.body
+        };
+      }
+    } catch (e) {
+      return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
+
   // The dramatically improved dialog!
   Future<Future<Object?>> _showUnfollowConfirmationDialog(
       String userId, String username) async {
@@ -200,6 +232,7 @@ class _FollowedButNotFollowedBackScreenState
                   onPressed: () {
                     Navigator.of(context).pop(); // Close the dialog first.
                     _unfollowUser(userId); // Then unfollow.
+                    _removeFollowing(userId);
                   },
                 ),
               ],

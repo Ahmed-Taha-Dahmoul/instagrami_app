@@ -15,7 +15,7 @@ class ApiService {
         "Content-Type": "application/json",
       },
     );
-    print(response.body);
+
     if (response.statusCode == 200) {
       String encryptedData = jsonDecode(response.body)['encrypted_data'];
       String decryptedData = EncryptionHelper.decryptData(encryptedData);
@@ -127,7 +127,6 @@ class ApiService {
           "Content-Type": "application/json",
         },
       );
-      print(response.body);
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -195,34 +194,6 @@ class ApiService {
 
 
 
-  static Future<bool> getUnfollowStatus(String token) async {
-    String url = "${AppConfig.baseUrl}api/unfollow-status/";
-
-    try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-      );
-
-      print(response.body);
-
-      if (response.statusCode == 200) {
-        var data = json.decode(response.body);
-        return data["unfollowed"] ?? false; // Ensure it returns a boolean
-      } else {
-        print("Error: ${response.statusCode} - ${response.body}");
-        return false;
-      }
-    } catch (e) {
-      print("Exception: $e");
-      return false;
-    }
-  }
-
-
   static Future<Map<String, dynamic>> changeUnfollowStatus(
       String token, bool unfollowStatus) async {
     String url = "${AppConfig.baseUrl}api/change_unfollow_status/";
@@ -251,6 +222,34 @@ class ApiService {
       }
     } catch (e) {
       return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
+
+
+
+  static Future<bool> updateLastTimeFetched(String token) async {
+    String url = "${AppConfig.baseUrl}api/update-last-time-fetched/";
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        return true;  // If status code is 200, return true
+      } else {
+        print('Error: ${response.statusCode}');
+        return false;  // If status code is not 200, return false
+      }
+    } catch (e) {
+      print('Exception: $e');
+      return false;  // In case of exception, return false
     }
   }
 

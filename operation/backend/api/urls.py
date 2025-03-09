@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import receive_instagram_data, check_instagram_status, get_encrypted_instagram_data , save_fetched_followers , save_fetched_following , get_followed_but_not_followed_back , get_dont_follow_back_you , verify_token , save_instagram_user_profile , get_instagram_user_profile
-from .views import get_unfollowed_status , check_instagram_counts , get_first_time_flag , update_first_time_flag , check_12_hours_passed , change_unfollow_status
+from .views import get_unfollowed_status , check_instagram_counts , get_first_time_flag , update_first_time_flag , check_12_hours_passed , change_unfollow_status , remove_following , update_last_time_fetched , remove_follower
 urlpatterns = [
     path('data/', receive_instagram_data, name='receive_instagram_data'),
     path('check_instagram_status/', check_instagram_status, name='check_instagram_status'),
@@ -18,5 +18,7 @@ urlpatterns = [
     path('get-first-time-flag/' , get_first_time_flag , name='get_first_time_flag'),
     path('update-first-time-flag/' , update_first_time_flag , name='update_first_time_flag'),
     path('check-12-hours-passed/' , check_12_hours_passed , name='check_12_hours_passed'),
-    
+    path('remove-following/' , remove_following , name='remove_following'),
+    path('remove-follower/' , remove_follower , name='remove_follower'),
+    path('update-last-time-fetched/' , update_last_time_fetched , name='update_last_time_fetched'),
 ]
