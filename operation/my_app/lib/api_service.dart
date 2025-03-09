@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'config.dart';
 import 'encryption.dart';
+import 'package:faker/faker.dart'; 
+
 
 class ApiService {
   static Future<Map<String, dynamic>> getInstagramData(String token) async {
@@ -48,6 +50,13 @@ class ApiService {
     }
   }
 
+
+  static String _generateRandomUserAgent() {
+    final faker = Faker();
+    return faker.internet.userAgent();
+  } 
+
+
   //bech tfechi profile mta3 user men instagram w tab3thou lel backend
   static Future<bool> getInstagramUserInfoAndSave(
       String userId,
@@ -59,14 +68,18 @@ class ApiService {
     print("Request URL:");
     print(url);
 
-    final headers = {
+    
+
+    try {
+      String userAgent = _generateRandomUserAgent();
+      
+      final headers = {
       "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
       "referer": "https://www.instagram.com/api/v1/users/$userId/info/",
       "x-csrftoken": csrftoken,
       "x-ig-app-id": xIgAppId,
+      "user-agent": userAgent,
     };
-
-    try {
       print("Sending request to Instagram...");
       final response = await http.get(Uri.parse(url), headers: headers);
 
@@ -181,5 +194,64 @@ class ApiService {
   }
 
 
+
+  static Future<bool> getUnfollowStatus(String token) async {
+    String url = "${AppConfig.baseUrl}api/unfollow-status/";
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        var data = json.decode(response.body);
+        return data["unfollowed"] ?? false; // Ensure it returns a boolean
+      } else {
+        print("Error: ${response.statusCode} - ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Exception: $e");
+      return false;
+    }
+  }
+
+
+  static Future<Map<String, dynamic>> changeUnfollowStatus(
+      String token, bool unfollowStatus) async {
+    String url = "${AppConfig.baseUrl}api/change_unfollow_status/";
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "unfollow_status": unfollowStatus,
+        }),
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {
+          "error": "Failed to update unfollow status: ${response.statusCode}",
+          "details": response.body
+        };
+      }
+    } catch (e) {
+      return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
 
 }

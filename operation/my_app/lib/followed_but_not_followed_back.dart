@@ -13,7 +13,7 @@ class FollowedButNotFollowedBackScreen extends StatefulWidget {
 
 class _FollowedButNotFollowedBackScreenState
     extends State<FollowedButNotFollowedBackScreen> {
-  final FlutterSecureStorage _storage = FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   List<User> _users = [];
   int _currentPage = 1;
   bool _isLoading = false;
@@ -37,7 +37,7 @@ class _FollowedButNotFollowedBackScreenState
     });
 
     try {
-      String? token = await _storage.read(key: 'access_token');
+      String? token = await _secureStorage.read(key: 'access_token');
       if (token == null) throw Exception('Access token not found');
 
       final response = await http.get(
@@ -83,11 +83,11 @@ class _FollowedButNotFollowedBackScreenState
   }
 
   Future<void> _unfollowUser(String userId) async {
-    String? user1Id = await _storage.read(key: 'user1_id');
-    String? csrftoken = await _storage.read(key: 'csrftoken');
-    String? sessionId = await _storage.read(key: 'session_id');
-    String? xIgAppId = await _storage.read(key: 'x_ig_app_id');
-
+    String? user1Id = await _secureStorage.read(key: 'user1_id');
+    String? csrftoken = await _secureStorage.read(key: 'csrftoken');
+    String? sessionId = await _secureStorage.read(key: 'session_id');
+    String? xIgAppId = await _secureStorage.read(key: 'x_ig_app_id');
+    
     if (csrftoken == null ||
         user1Id == null ||
         sessionId == null ||

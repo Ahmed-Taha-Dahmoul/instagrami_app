@@ -381,6 +381,7 @@ def save_instagram_user_profile(request):
             created = True
             previous_follower_count = None  # No previous data
 
+        
         # Check if follower count changed
         if previous_follower_count is not None:
             if instagram_follower_count < previous_follower_count:
@@ -388,6 +389,7 @@ def save_instagram_user_profile(request):
             elif instagram_follower_count > previous_follower_count:
                 instagram_user_data.unfollowed = True  # Follower count increased
         else:
+            
             instagram_user_data.unfollowed = False  # No previous data to compare
 
         # Update the InstagramUser_data fields
@@ -472,7 +474,6 @@ def get_unfollowed_status(request):
     try:
         # Fetch the InstagramUser_data object for the authenticated user
         instagram_user_data = InstagramUser_data.objects.get(user=request.user)
-
         return Response({
             "unfollowed": instagram_user_data.unfollowed
         }, status=status.HTTP_200_OK)
@@ -489,6 +490,39 @@ def get_unfollowed_status(request):
             "details": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def change_unfollow_status(request):
+    try:
+        unfollow_status = request.data.get('unfollow_status')
+
+        if unfollow_status is not None:
+            instagram_user_data = InstagramUser_data.objects.get(user=request.user)
+            instagram_user_data.unfollowed = False
+            instagram_user_data.save()
+
+            # Returning a success response
+            return Response({
+                "message": "Unfollow status updated successfully"
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "error": "Unfollow status is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    except InstagramUser_data.DoesNotExist:
+        return Response({
+            "error": "Instagram user data not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:faker/faker.dart';
 import 'config.dart';
+
 
 class NotFollowedButFollowingMeScreen extends StatefulWidget {
   @override
@@ -13,7 +15,7 @@ class NotFollowedButFollowingMeScreen extends StatefulWidget {
 
 class _NotFollowedButFollowingMeScreenState
     extends State<NotFollowedButFollowingMeScreen> {
-  final FlutterSecureStorage _storage = FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   List<User> _users = [];
   int _currentPage = 1;
   bool _isLoading = false;
@@ -36,7 +38,7 @@ class _NotFollowedButFollowingMeScreenState
     });
 
     try {
-      String? token = await _storage.read(key: 'access_token');
+      String? token = await _secureStorage.read(key: 'access_token');
       if (token == null) throw Exception('Access token not found');
 
       final response = await http.get(
@@ -80,11 +82,16 @@ class _NotFollowedButFollowingMeScreenState
     }
   }
 
+  static String _generateRandomUserAgent() {
+    final faker = Faker();
+    return faker.internet.userAgent();
+  }
+
   Future<void> _removeUser(String userId) async {
-    String? user1Id = await _storage.read(key: 'user1_id');
-    String? csrftoken = await _storage.read(key: 'csrftoken');
-    String? sessionId = await _storage.read(key: 'session_id');
-    String? xIgAppId = await _storage.read(key: 'x_ig_app_id');
+    String? user1Id = await _secureStorage.read(key: 'user1_id');
+    String? csrftoken = await _secureStorage.read(key: 'csrftoken');
+    String? sessionId = await _secureStorage.read(key: 'session_id');
+    String? xIgAppId = await _secureStorage.read(key: 'x_ig_app_id');
 
     if (csrftoken == null ||
         user1Id == null ||
@@ -97,6 +104,7 @@ class _NotFollowedButFollowingMeScreenState
       );
       return;
     }
+    String userAgent = _generateRandomUserAgent();
 
     final headers = {
       "cookie":
@@ -106,6 +114,7 @@ class _NotFollowedButFollowingMeScreenState
       "x-csrftoken": csrftoken,
       "x-ig-app-id": xIgAppId,
       'Content-Type': 'application/x-www-form-urlencoded',
+      "user-agent": userAgent,
     };
 
     final response = await http.post(
@@ -185,7 +194,7 @@ class _NotFollowedButFollowingMeScreenState
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 146, 55, 48),
+                    backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),

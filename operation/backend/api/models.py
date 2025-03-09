@@ -26,15 +26,17 @@ class InstagramUser_data(models.Model):
 
     instagram_username = models.CharField(max_length=255, blank=True)
     instagram_full_name = models.CharField(max_length=255, blank=True)
-    unfollowed = models.BooleanField(default=False, blank=True)
-    instagram_follower_count = models.PositiveIntegerField(default=0)
-    instagram_following_count = models.PositiveIntegerField(default=0)
-    instagram_total_posts = models.PositiveIntegerField(default=0)
+    
+    instagram_follower_count = models.PositiveIntegerField( blank = True , null=True)
+    instagram_following_count = models.PositiveIntegerField( blank = True , null=True)
+    instagram_total_posts = models.PositiveIntegerField(blank = True , null=True)
     instagram_biography = models.TextField(blank=True)
     instagram_profile_picture_url = models.URLField(max_length=1000, blank=True)
 
     # New field
     last_time_fetched = models.DateTimeField(default=now, blank=True)
+    unfollowed = models.BooleanField(default=False, blank=True)
+
 
     def __str__(self):
         return str(self.user.username)
@@ -55,7 +57,7 @@ class InstagramUser_data(models.Model):
 
 class FrontFlags(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)  # Link to Django User model
-    is_first_time_connected_flag = models.BooleanField(default=False, blank=True)
+    is_first_time_connected_flag = models.BooleanField(default=True, blank=True)
 
     def __str__(self):
         return str(self.user.username)

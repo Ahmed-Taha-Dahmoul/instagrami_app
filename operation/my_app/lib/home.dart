@@ -161,7 +161,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             key: 'session_id', value: data['session_id']);
         await _secureStorage.write(
             key: 'x_ig_app_id', value: data['x_ig_app_id']);
-
+        
         final lastfech = await ApiService.checkIf12HoursPassed(accessToken);
         if (lastfech) {
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
@@ -177,38 +177,49 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             });
             bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
             if (checkCounts) {
-              bool instagram_data_feched_saved =
-                  await fetchAndSendfollowing_followers(
-                      accessToken, userId, sessionId, csrftoken, xIgAppId);
-              if (instagram_data_feched_saved) {
-                bool flagUpdated = await FirstTimeFlagService.postFirstTimeFlag(
-                    accessToken, false);
-                if (flagUpdated) {
-                  setState(() {
-                    instagramData = data;
-                    isInstagramConnected = true;
-                    isMoreThanCount = checkCounts;
-                    isLoading = false;
-                    isFirstTimeUser = false;
-                    instagramUserProfile = userProfile;
-                    
-                  });
-                  print("First-time flag updated successfully.");
-                } else {
+
+              bool unfollowstatus = await ApiService.getUnfollowStatus(accessToken);
+
+              if (unfollowstatus) {
+
+                  var response = await ApiService.changeUnfollowStatus(accessToken, false);
+                  print(response);
+                  bool instagram_data_feched_saved =
+                      await fetchAndSendfollowing_followers(
+                          accessToken, userId, sessionId, csrftoken, xIgAppId);
+                  if (instagram_data_feched_saved) {
+                    bool flagUpdated = await FirstTimeFlagService.postFirstTimeFlag(
+                        accessToken, false);
+                    if (flagUpdated) {
+                      setState(() {
+                        instagramData = data;
+                        isInstagramConnected = true;
+                        isMoreThanCount = checkCounts;
+                        isLoading = false;
+                        isFirstTimeUser = false;
+                        instagramUserProfile = userProfile;
+                        
+                      });
+                      print("First-time flag updated successfully.");
+                    } else {
+                      setState(() {
+                        isInstagramConnected = false;
+                        isLoading = false;
+                        errorMessage = "Failed to update first-time flag.";
+                      });
+                      print("Failed to update first-time flag.");
+                    }
+                    print("Instagram user info saved, profile fetched, counts checked, and data sent if required.");
+                  }else {
                   setState(() {
                     isInstagramConnected = false;
                     isLoading = false;
-                    errorMessage = "Failed to update first-time flag.";
                   });
-                  print("Failed to update first-time flag.");
                 }
-                print("Instagram user info saved, profile fetched, counts checked, and data sent if required.");
               }else {
-              setState(() {
-                isInstagramConnected = false;
                 isLoading = false;
-              });
-            }
+              }
+              
             }else {
               setState(() {
                 
@@ -218,7 +229,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             }
           }else {
             setState(() {
-                isInstagramConnected = false;
                 isLoading = false;
               });
           }
@@ -304,7 +314,7 @@ Widget _buildBody() {
   if (isInstagramConnected) {
     // Instagram is connected
     if (isMoreThanCount) {
-      // Connected and the account has more than 20k followers/following
+      // Connected and the account has less than 20k followers/following
       return Column(
         children: [
           _buildUserProfile(),

@@ -82,11 +82,11 @@ class _InstagramLoginState extends State<InstagramLogin> {
                 }
               } else {
                 print("User is not logged in yet.");
-                Navigator.pop(context, false);  // Return false if user is not logged in
+                 // Return false if user is not logged in
               }
             } catch (e) {
               print("Error checking login status: $e");
-              Navigator.pop(context, false);  // Return false on error
+               // Return false on error
             }
           },
         ),
