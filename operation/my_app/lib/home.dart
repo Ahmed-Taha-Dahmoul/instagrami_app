@@ -7,6 +7,7 @@ import 'first_time_flag_service.dart';
 import 'who_unfollowed_you.dart';
 import 'followed_but_not_followed_back.dart';
 import 'not_followed_but_following_me.dart';
+import 'search_someone_screen.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -56,7 +57,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           String userId = data['user1_id'];
           String sessionId = data['session_id'];
           String xIgAppId = data['x_ig_app_id'];
-          print("dddddddddddddddddddddddddddddddddddddddddddd");
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
               userId, csrftoken, sessionId, xIgAppId, accessToken);
 
@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       accessToken, userId, sessionId, csrftoken, xIgAppId);
               if (instagram_data_feched_saved) {
                 bool flagUpdated =
-                    await FirstTimeFlagService.postFirstTimeFlag(accessToken, true);
+                    await FirstTimeFlagService.postFirstTimeFlag(accessToken, false);
                 if (flagUpdated) {
                   setState(() {
                     instagramData = data;
@@ -166,11 +166,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         print("afterr getting data ");
         final lastfech = await ApiService.checkIf12HoursPassed(accessToken);
         if (lastfech) {
+          print("requesting to the instagram to get the profile ");
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
               userId, csrftoken, sessionId, xIgAppId, accessToken);
           
           if (userInfoSaved) {
-            
+            print("success feching user profile from instagram");
+            print(userInfoSaved);
             final userProfile =
                 await ApiService.fetchInstagramUserProfile(accessToken);
             
@@ -383,6 +385,21 @@ Widget _buildBody() {
                       );
                     },
                   ),
+                  _buildCard(
+                    'assets/icons/search.png',
+                    'View Recent Follows & Followers of someone ',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SearchSomeoneScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+
                 ],
               ),
             ),

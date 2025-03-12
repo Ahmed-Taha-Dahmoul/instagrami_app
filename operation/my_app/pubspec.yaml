@@ -63,12 +63,5 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/jar1.png
-    - assets/jar2.png
-    - assets/jar3.png
-    - assets/coin.png
-    - assets/plane.png
-    - assets/card.png
-    - assets/lock.png
-    - assets/globe.png
+    - assets/
     - assets/icons/

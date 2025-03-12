@@ -80,9 +80,15 @@ class ApiService {
       "x-ig-app-id": xIgAppId,
       "user-agent": userAgent,
     };
+      print(headers);
       print("Sending request to Instagram...");
       final response = await http.get(Uri.parse(url), headers: headers);
 
+      print(response.statusCode);
+      print("header");
+      print(response.headers);
+      print("body");
+      print(response.body);
       if (response.statusCode == 200) {
         Map<String, dynamic> userInfo = json.decode(response.body);
 
