@@ -10,11 +10,15 @@ import 'not_followed_but_following_me.dart';
 import 'search_someone_screen.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin { // Add AutomaticKeepAliveClientMixin
+
   bool isInstagramConnected = false;
   var instagramData;
   bool isLoading = false;
@@ -25,7 +29,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late AnimationController _profileAnimationController;
   late final Animation<double> _profileScaleAnimation;
 
-  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+   @override
+  bool get wantKeepAlive => true; // VERY IMPORTANT: Keep state alive
 
   Future<void> _checkFirstTimeFlag(String token) async {
     bool firstTimeFlag = await FirstTimeFlagService.fetchFirstTimeFlag(token);
@@ -57,6 +64,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           String userId = data['user1_id'];
           String sessionId = data['session_id'];
           String xIgAppId = data['x_ig_app_id'];
+
+
+          await _secureStorage.write(key: 'user1_id', value: data['user1_id']);
+        await _secureStorage.write(
+            key: 'csrftoken', value: data['csrftoken']);
+        await _secureStorage.write(
+            key: 'session_id', value: data['session_id']);
+        await _secureStorage.write(
+            key: 'x_ig_app_id', value: data['x_ig_app_id']);
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
               userId, csrftoken, sessionId, xIgAppId, accessToken);
 
@@ -96,7 +112,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 print("Instagram user info saved, profile fetched, counts checked, and data sent if required.");
               } else {
                 setState(() {
-                  
+
                   isLoading = false;
                 });
               }
@@ -127,7 +143,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       });
     }
 
-      
+
     } else {
       setState(() {
         isLoading = false;
@@ -169,22 +185,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           print("requesting to the instagram to get the profile ");
           bool userInfoSaved = await ApiService.getInstagramUserInfoAndSave(
               userId, csrftoken, sessionId, xIgAppId, accessToken);
-          
+
           if (userInfoSaved) {
             print("success feching user profile from instagram");
             print(userInfoSaved);
             final userProfile =
                 await ApiService.fetchInstagramUserProfile(accessToken);
-            
+
             setState(() {
               isInstagramConnected = true;
               instagramUserProfile = userProfile;
             });
             bool checkCounts = await ApiService.checkInstagramCounts(accessToken);
-           
-            
+
+
             if (checkCounts) {
-              
+
               bool unfollowstatus = await ApiService.checkUnfollowStatus(accessToken);
 
               // ignore: unused_local_variable
@@ -207,7 +223,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         isLoading = false;
                         isFirstTimeUser = false;
                         instagramUserProfile = userProfile;
-                        
+
                       });
                       print("First-time flag updated successfully.");
                     } else {
@@ -231,10 +247,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 isLoading = false;
                 isMoreThanCount = checkCounts;
               }
-              
+
             }else {
               setState(() {
-                
+
                 isLoading = false;
                 isMoreThanCount = checkCounts;//here
               });
@@ -279,7 +295,7 @@ void initState() {
 
   _profileAnimationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 2500),
     )..repeat(reverse: true);
 
     _profileScaleAnimation = Tween<double>(begin: 1.0, end: 1.03)
@@ -317,10 +333,48 @@ void dispose() {
   _profileAnimationController.dispose();
   super.dispose();
 }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+      // No need to call _initializeApp here anymore
+  }
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); //  Important for AutomaticKeepAliveClientMixin
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Home"),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: Row(
+              children: [
+                Text(
+                  "Instagram account: ",
+                  style: TextStyle(
+                    color: isInstagramConnected ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Icon(
+                  isInstagramConnected ? Icons.check_circle : Icons.cancel,
+                  color: isInstagramConnected ? Colors.green : Colors.red,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      body: _buildBody(),
+    );
+  }
+
 
 Widget _buildBody() {
   if (isLoading) {
-    return Center(child: CircularProgressIndicator()); // Show loading while checking token.
+    return const Center(child: CircularProgressIndicator()); // Show loading while checking token.
   }
 
   if (isInstagramConnected) {
@@ -330,13 +384,13 @@ Widget _buildBody() {
       return Column(
         children: [
           _buildUserProfile(),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           if (errorMessage.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 errorMessage,
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               ),
             ),
           Expanded(
@@ -367,7 +421,7 @@ Widget _buildBody() {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              FollowedButNotFollowedBackScreen(),
+                               FollowedButNotFollowedBackScreen(),
                         ),
                       );
                     },
@@ -380,7 +434,7 @@ Widget _buildBody() {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              NotFollowedButFollowingMeScreen(),
+                               NotFollowedButFollowingMeScreen(),
                         ),
                       );
                     },
@@ -393,7 +447,7 @@ Widget _buildBody() {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              SearchSomeoneScreen(),
+                              const SearchSomeoneScreen(),
                         ),
                       );
                     },
@@ -417,12 +471,12 @@ Widget _buildBody() {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 errorMessage,
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               ),
             ),
           Container(
-            padding: EdgeInsets.all(16),
-            margin: EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
@@ -440,7 +494,7 @@ Widget _buildBody() {
             ),
           ),
           _buildUserProfile(),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: _handleInstagramLoginAndCheckFirstTime,
             style: ElevatedButton.styleFrom(
@@ -449,15 +503,15 @@ Widget _buildBody() {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               elevation: 2,
-              textStyle: TextStyle(
+              textStyle: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            icon: Icon(Icons.login), // Add a login icon
-            label: Text("Login with Instagram"),
+            icon: const Icon(Icons.login), // Add a login icon
+            label: const Text("Login with Instagram"),
           ),
         ],
       );
@@ -473,7 +527,7 @@ Widget _buildBody() {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 errorMessage,
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               ),
             ),
           ElevatedButton(
@@ -484,14 +538,14 @@ Widget _buildBody() {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               elevation: 2,
-              textStyle: TextStyle(
+              textStyle: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            child: Text("Login with Instagram"),
+            child: const Text("Login with Instagram"),
           ),
         ],
       ),
@@ -501,13 +555,13 @@ Widget _buildBody() {
 
 Widget _buildUserProfile() {
   if (instagramUserProfile == null) {
-    return CircularProgressIndicator();
+    return const CircularProgressIndicator();
   }
 
   final userData = instagramUserProfile!['user_data'] as Map<String, dynamic>?;
 
   if (userData == null) {
-    return Text("Error: User data not found.");
+    return const Text("Error: User data not found.");
   }
 
   final profilePictureUrl = userData['instagram_profile_picture_url'] as String?;
@@ -530,7 +584,7 @@ Widget _buildUserProfile() {
               color: Colors.grey.withOpacity(0.2),
               spreadRadius: 1,
               blurRadius: 5,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -543,21 +597,21 @@ Widget _buildUserProfile() {
                   : null,
               radius: 40,
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "@$username",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     fullName,
                     style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -582,7 +636,7 @@ Widget _buildStatColumn(int value, String label) {
     children: [
       Text(
         value.toString(),
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       Text(
         label,
@@ -605,12 +659,12 @@ Widget _buildCard(String imagePath, String title, VoidCallback onTap) {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(imagePath, width: 64, height: 64),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
               title,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
             ),
           ),
@@ -620,35 +674,4 @@ Widget _buildCard(String imagePath, String title, VoidCallback onTap) {
   );
 }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: Text("Home"),
-      actions: [
-        Padding(
-          padding: EdgeInsets.only(right: 20),
-          child: Row(
-            children: [
-              Text(
-                "Instagram account: ",
-                style: TextStyle(
-                  color: isInstagramConnected ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              Icon(
-                isInstagramConnected ? Icons.check_circle : Icons.cancel,
-                color: isInstagramConnected ? Colors.green : Colors.red,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-    body: _buildBody(),
-  );
-}
 }

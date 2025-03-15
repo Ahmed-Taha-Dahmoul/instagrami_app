@@ -16,7 +16,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
   List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
   bool _isDataLoaded = false;
-  bool _isSearchLoading = false; // Separate loading state for initial search
+  bool _isSearchLoading = false;
   List<Map<String, dynamic>> _followedUsers = [];
   List<Map<String, dynamic>> _followerUsers = [];
   late TabController _tabController;
@@ -43,13 +43,12 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
 
   Future<void> performSearch() async {
     setState(() {
-      _isSearchLoading = true; // Set search-specific loading state
+      _isSearchLoading = true;
       _errorMessage = null;
       _isDataLoaded = false;
       _followedUsers = [];
       _followerUsers = [];
-      _searchResults =
-          []; // Clear results *before* starting the search, crucial for UX
+      _searchResults = []; // Clear previous results
     });
 
     String? user1Id = await _secureStorage.read(key: 'user1_id');
@@ -62,7 +61,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
         sessionId == null ||
         xIgAppId == null) {
       setState(() {
-        _isSearchLoading = false; // Reset search-specific loading state
+        _isSearchLoading = false;
         _errorMessage = "Authentication error. Please log in again.";
       });
       return;
@@ -79,36 +78,33 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
       );
       setState(() {
         _searchResults = results;
-        _isSearchLoading =
-            false; // Reset search-specific loading state after success
+        _isSearchLoading = false;
       });
     } catch (e) {
       setState(() {
-        _isSearchLoading = false; // Reset search-specific loading state on error
+        _isSearchLoading = false;
         _errorMessage = "Search failed: $e";
       });
     }
   }
-
   void _selectUser(Map<String, dynamic> user) async {
-    setState(() {
-      _isLoading =
-          true; // This is for loading followers/following, separate from search loading
-      _errorMessage = null;
-      _isDataLoaded = false;
-      _searchResults = [];
-    });
-
+    // Check for private account *before* setting _isLoading
     bool isPrivate = user['is_private'] ?? false;
     bool isFollowing = user['following'] ?? false;
 
     if (isPrivate && !isFollowing) {
-      setState(() {
-        _isLoading = false;
-      });
       _showPrivateAccountDialog(user['username'] ?? 'this user');
-      return;
+      // Do NOT set _isLoading = true or clear _searchResults here
+      return; // Exit early without further processing
     }
+
+    // If not private or if following, proceed with loading
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _isDataLoaded = false;
+       _searchResults = []; // and only in that case i clear it 
+    });
 
     String? user1Id = await _secureStorage.read(key: 'user1_id');
     String? csrftoken = await _secureStorage.read(key: 'csrftoken');
@@ -135,14 +131,13 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
       });
       return;
     }
-  
 
     try {
       final followingData =
           await SearchSomeoneApiService.fetchInstagramFollowing(
         userPk,
         user1Id,
-        50,
+        10,
         sessionId,
         csrftoken,
         xIgAppId,
@@ -153,7 +148,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
           await SearchSomeoneApiService.fetchInstagramFollowers(
         userPk,
         user1Id,
-        50,
+        10,
         sessionId,
         csrftoken,
         xIgAppId,
@@ -170,7 +165,6 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
         _followerUsers = followerUsers;
         _isDataLoaded = true;
         _isLoading = false;
-        //_searchResults = [];  // Clear search results - already done at the start of _selectUser
       });
     } catch (e) {
       setState(() {
@@ -180,8 +174,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     }
   }
 
-  List<Map<String, dynamic>> _extractUsers(
-      Map<String, dynamic> data, String edgeKey) {
+    List<Map<String, dynamic>> _extractUsers(Map<String, dynamic> data, String edgeKey) {
     List<Map<String, dynamic>> users = [];
     if (data.containsKey('data') &&
         data['data'].containsKey('user') &&
@@ -200,6 +193,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     }
     return users;
   }
+
 
   void _showPrivateAccountDialog(String username) {
     showDialog(
@@ -235,14 +229,13 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
               const SizedBox(height: 16),
             ],
             if (_isSearchLoading) ...[
-              // Show search loading indicator *instead* of search results
               const Expanded(
                 child: Center(
                   child: CircularProgressIndicator(),
                 ),
               ),
             ] else if (_searchResults.isNotEmpty) ...[
-              _buildSearchResults(), // Show search results only if not loading
+              _buildSearchResults(),
             ] else if (!_isDataLoaded &&
                 !_isSearchLoading &&
                 _searchController.text.isEmpty) ...[
@@ -251,7 +244,6 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
             if (_isLoading) ...[
               const SizedBox(height: 24),
               const Expanded(
-                // Expand to take up available space
                 child: Center(
                   child: CircularProgressIndicator(),
                 ),
@@ -294,15 +286,14 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
                         onPressed: () {
                           setState(() {
                             _searchController.clear();
-                            _searchResults =
-                                []; // Clear results when clearing input
+                            _searchResults = [];
                           });
                         },
                       )
                     : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25.0),
-                  borderSide: BorderSide.none, // Remove border
+                  borderSide: BorderSide.none,
                 ),
                 filled: true,
                 fillColor: Colors.grey[200],
@@ -314,9 +305,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: _isSearchLoading
-                ? null
-                : performSearch, // Disable button during search
+            onPressed: _isSearchLoading ? null : performSearch,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue[600],
               foregroundColor: Colors.white,
@@ -372,12 +361,11 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
       itemCount: users.length,
       padding: const EdgeInsets.symmetric(vertical: 8),
       separatorBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16.0), // Add horizontal padding
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Divider(
-          color: Colors.black, // Black divider
+          color: Colors.black,
           height: 1,
-          thickness: 0.5, // Thinner divider
+          thickness: 0.5,
         ),
       ),
       itemBuilder: (context, index) {
@@ -395,7 +383,8 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
                 )
               : const CircleAvatar(
                   radius: 24, child: Icon(Icons.person, size: 28)),
-          title: Text(username, style: const TextStyle(fontWeight: FontWeight.w500)),
+          title:
+              Text(username, style: const TextStyle(fontWeight: FontWeight.w500)),
           subtitle: Text('$fullName ${isPrivate ? '(Private)' : ''}',
               style: TextStyle(color: Colors.grey[600])),
         );
@@ -430,8 +419,8 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
                   )
                 : const CircleAvatar(
                     radius: 24, child: Icon(Icons.person, size: 28)),
-            title:
-                Text(username, style: const TextStyle(fontWeight: FontWeight.w500)),
+            title: Text(username,
+                style: const TextStyle(fontWeight: FontWeight.w500)),
             subtitle: Text('$fullName ${isPrivate ? '(Private)' : ''}',
                 style: TextStyle(color: Colors.grey[600])),
             trailing: ElevatedButton(

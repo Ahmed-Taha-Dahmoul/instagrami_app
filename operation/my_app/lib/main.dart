@@ -122,7 +122,6 @@ class _MainScreenState extends State<MainScreen> {
     HomePage(),
     ProfilePage(),
     SettingsPage(),
-    //FollowedButNotFollowedBackScreen(), // Removed screen
   ];
 
   void _onPageChanged(int index) {

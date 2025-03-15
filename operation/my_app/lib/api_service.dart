@@ -65,49 +65,56 @@ class ApiService {
       String xIgAppId,
       String token) async {
     String url = "https://www.instagram.com/api/v1/users/$userId/info/";
-    print("Request URL:");
-    print(url);
-
-    
+    print("Request URL: $url");
 
     try {
       String userAgent = _generateRandomUserAgent();
-      
+
       final headers = {
-      "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
-      "referer": "https://www.instagram.com/api/v1/users/$userId/info/",
-      "x-csrftoken": csrftoken,
-      "x-ig-app-id": xIgAppId,
-      "user-agent": userAgent,
-    };
-      print(headers);
+        "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
+        "referer": "https://www.instagram.com/api/v1/users/$userId/info/",
+        "x-csrftoken": csrftoken,
+        "x-ig-app-id": xIgAppId,
+        "user-agent": userAgent,
+      };
+      print("Headers: $headers");
+
       print("Sending request to Instagram...");
       final response = await http.get(Uri.parse(url), headers: headers);
 
-      print(response.statusCode);
-      print("header");
-      print(response.headers);
-      print("body");
-      print(response.body);
+      print("Status Code: ${response.statusCode}");
+      print("Response Headers: ${response.headers}");
+      print("Response Body: ${response.body}");
+
       if (response.statusCode == 200) {
         Map<String, dynamic> userInfo = json.decode(response.body);
+        print(userInfo);
+        // Check if follower_count and following_count exist
+        if (userInfo.containsKey('user') &&
+          userInfo['user'].containsKey('follower_count') &&
+          userInfo['user'].containsKey('following_count')) {
+          // Sending the fetched data to the API endpoint
+          String saveUrl = "${AppConfig.baseUrl}api/save-user-instagram-profile/";  // Use your base URL
+          final saveResponse = await http.post(
+            Uri.parse(saveUrl),
+            headers: {
+              "Authorization": "Bearer $token",
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode({"user_data": userInfo}),
+          );
 
-        // Sending the fetched data to the API endpoint
-        String saveUrl = "${AppConfig.baseUrl}api/save-user-instagram-profile/";
-        final saveResponse = await http.post(
-          Uri.parse(saveUrl),
-          headers: {
-            "Authorization": "Bearer $token",
-            "Content-Type": "application/json",
-          },
-          body: jsonEncode({"user_data": userInfo}),
-        );
-
-        if (saveResponse.statusCode == 200) {
-          return true; // Successfully saved the user data
+          if (saveResponse.statusCode == 200) {
+            print("User data saved successfully.");
+            return true; // Successfully saved the user data
+          } else {
+            print("Failed to save user data: ${saveResponse.statusCode}");
+            print("Save Response Body: ${saveResponse.body}"); // Log the save response body
+            return false; // Failed to save user data
+          }
         } else {
-          print("Failed to save user data: ${saveResponse.statusCode}");
-          return false; // Failed to save user data
+          print("Missing follower_count or following_count in response.");
+          return false; // Required fields are missing
         }
       } else {
         print("Failed to fetch data: ${response.statusCode}");

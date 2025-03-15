@@ -195,10 +195,14 @@ Future<bool> fetchAndSendfollowing_followers(
     // Fetch Following Data
     List<dynamic>? followingData = await InstagramService.getInstagramFollowing(
         userId, sessionId, csrftoken, xIgAppId);
-
+    print("following data !!!!!!!!!!!!!!!!!!!!!!");
+    print(followingData);
     // Fetch Followers Data
     List<dynamic>? followersData = await InstagramService.getInstagramFollowers(
         userId, sessionId, csrftoken, xIgAppId);
+
+    print("follower data ??????????????????????????????????????????????");
+    print(followersData);
 
     bool followingSuccess = false;
     bool followersSuccess = false;

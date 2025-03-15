@@ -1,37 +1,50 @@
 import 'package:flutter/material.dart';
 
 class BottomNavBar extends StatefulWidget {
-  final int initialIndex; // Add initialIndex
+  final int initialIndex;
   final Function(int) onTabSelected;
 
-  BottomNavBar(
-      {required this.onTabSelected, this.initialIndex = 0}); // Default to 0
+  const BottomNavBar(
+      {super.key, required this.onTabSelected, this.initialIndex = 0});
 
   @override
   _BottomNavBarState createState() => _BottomNavBarState();
 }
 
 class _BottomNavBarState extends State<BottomNavBar> {
-  late int _selectedIndex; // Use late initialization
+  late int _selectedIndex;
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex; // Initialize with initialIndex
+    _selectedIndex = widget.initialIndex;
+  }
+
+  //  Add this didUpdateWidget method
+  @override
+  void didUpdateWidget(covariant BottomNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != oldWidget.initialIndex) {
+      setState(() {
+        _selectedIndex = widget.initialIndex;
+      });
+    }
   }
 
   void _onItemTapped(int index) {
-    // No need to setState here, as the parent will handle navigation
-    widget.onTabSelected(index); // Notify the parent widget
+    setState(() { //  ADD THIS setState
+      _selectedIndex = index;
+    });
+    widget.onTabSelected(index);
   }
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed, // Important for > 3 items
+      type: BottomNavigationBarType.fixed,
       currentIndex: _selectedIndex,
-      selectedItemColor: Colors.blue, // Or your preferred color
-      unselectedItemColor: Colors.grey, // Or your preferred color
+      selectedItemColor: Colors.blue,
+      unselectedItemColor: Colors.grey,
       onTap: _onItemTapped,
       items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(

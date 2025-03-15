@@ -48,7 +48,7 @@ class _InstagramLoginState extends State<InstagramLogin> {
           onLoadStop: (controller, url) async {
             try {
               // Add a delay to ensure the page is fully loaded
-              await Future.delayed(Duration(seconds: 6));
+              await Future.delayed(Duration(seconds: 3));
 
               // Get all cookies associated with the Instagram domain
               CookieManager cookieManager = CookieManager.instance();

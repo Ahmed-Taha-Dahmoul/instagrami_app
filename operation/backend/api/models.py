@@ -17,9 +17,11 @@ class InstagramUser_data(models.Model):
     # JSON fields for storing old and new lists
     old_following_list = models.JSONField(default=list, blank=True)
     new_following_list = models.JSONField(default=list, blank=True)
-    who_remove_follow = models.JSONField(default=list, blank=True)
+    who_removed_following = models.JSONField(default=list, blank=True)
+    who_removed_follower = models.JSONField(default=list, blank=True)
     
-    followers_list = models.JSONField(default=list, blank=True)
+    old_followers_list = models.JSONField(default=list, blank=True)
+    new_followers_list = models.JSONField(default=list, blank=True)
 
     who_i_follow_he_dont_followback = models.JSONField(default=list, blank=True)
     who_i_dont_follow_he_followback = models.JSONField(default=list, blank=True)
