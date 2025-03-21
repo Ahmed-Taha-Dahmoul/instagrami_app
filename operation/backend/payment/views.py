@@ -1,0 +1,132 @@
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from .models import Payment , PaymentHistory, UserCredit
+import uuid
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def add_payment(request):
+    """
+    API endpoint to add a new payment request for the authenticated user.
+    """
+    try:
+        # Extract data from request
+        card_number = request.data.get('card_number')
+
+        if not card_number:
+            return Response({"error": "Card number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create a new Payment record
+        payment = Payment.objects.create(
+            id=uuid.uuid4(),
+            user=request.user,
+            card_number=card_number,  # Ideally, store a hashed version instead
+            status='pending'  # Default status
+        )
+
+        return Response({
+            "message": "Payment request created successfully",
+            "payment_id": str(payment.id),
+            "status": payment.status
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_payments(request):
+    """
+    API endpoint to fetch all payments for the authenticated user.
+    """
+    try:
+        payments = Payment.objects.filter(user=request.user).order_by('-created_at')
+
+        payments_data = [
+            {
+                "payment_id": str(payment.id),
+                "status": payment.status,
+                "card_number": payment.card_number,  # Consider masking for security
+                "created_at": payment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                "validated_at": payment.validated_at.strftime('%Y-%m-%d %H:%M:%S') if payment.validated_at else None
+            }
+            for payment in payments
+        ]
+
+        return Response({"payments": payments_data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_payment_history(request):
+    """
+    API endpoint to fetch the payment history for the authenticated user.
+    """
+    try:
+        payment_history = PaymentHistory.objects.filter(user=request.user).order_by('-timestamp')
+
+        history_data = [
+            {
+                "payment_id": str(record.payment.id),
+                "credits_added": str(record.credits_added),
+                "timestamp": record.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            }
+            for record in payment_history
+        ]
+
+        return Response({"payment_history": history_data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_user_credit(request):
+    """
+    API endpoint to fetch the current credit balance of the authenticated user.
+    """
+    try:
+        # Get or create a UserCredit object for the user
+        user_credit, _ = UserCredit.objects.get_or_create(user=request.user)
+
+        return Response({
+            "user": request.user.username,
+            "credit_balance": str(user_credit.balance)
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "An error occurred",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

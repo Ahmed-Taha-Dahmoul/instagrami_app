@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import receive_instagram_data, check_instagram_status, get_encrypted_instagram_data , save_fetched_followers , save_fetched_following , get_followed_but_not_followed_back , get_dont_follow_back_you , verify_token , save_instagram_user_profile , get_instagram_user_profile
 from .views import get_unfollowed_status , check_instagram_counts , get_first_time_flag , update_first_time_flag , check_12_hours_passed , change_unfollow_status , remove_following , update_last_time_fetched , remove_follower , get_who_removed_you , get_unfollowed_you
-from .views import remove_unfollowed_you
+from .views import remove_unfollowed_you , remove_removed_you
 urlpatterns = [
     path('data/', receive_instagram_data, name='receive_instagram_data'),
     path('check_instagram_status/', check_instagram_status, name='check_instagram_status'),
@@ -25,4 +25,5 @@ urlpatterns = [
     path('get-unfollowed-you/' , get_unfollowed_you , name='get_unfollowed_you'),
     path('get-who-removed-you/' , get_who_removed_you , name='get_who_removed_you'),
     path('remove-unfollowed-you/' , remove_unfollowed_you , name='remove_unfollowed_you'),
+    path('remove-removed-you/' , remove_removed_you , name='remove_removed_you'),
 ]

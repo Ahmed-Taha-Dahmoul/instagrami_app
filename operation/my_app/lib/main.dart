@@ -7,10 +7,10 @@ import 'config.dart';
 import 'welcome_page.dart';
 import 'home.dart';
 import 'bottom_nav_bar.dart';
-//import 'followed_but_not_followed_back.dart'; // Removed import and references
 import 'profile_page.dart';
 import 'settings_page.dart';
-import 'app_routes.dart'; // Import the new routes file
+import 'app_routes.dart';
+import 'custom_splash_screen.dart'; // Import CustomSplashScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,58 +25,97 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _storage = FlutterSecureStorage();
   final ValueNotifier<bool> _isLoggedIn = ValueNotifier<bool>(false);
+  // ignore: unused_field
+  bool _isLoading = true;
+  String? _errorMessage;
+  bool _showSplashScreen = true; // Flag to control splash screen display
 
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    _initialize();
   }
 
-  void _checkLoginStatus() async {
-    String? accessToken = await _storage.read(key: 'access_token');
-    String? refreshToken = await _storage.read(key: 'refresh_token');
+  Future<void> _initialize() async {
+    // Simulate splash screen duration.
+    await Future.delayed(Duration(seconds: 3));
 
-    if (accessToken != null) {
-      bool isValid = await _verifyToken(accessToken);
-      if (isValid) {
-        _isLoggedIn.value = true;
-      } else if (refreshToken != null) {
-        String? newAccessToken = await _refreshToken(refreshToken);
-        if (newAccessToken != null) {
-          await _storage.write(key: 'access_token', value: newAccessToken);
+    // Now check login status
+    await _checkLoginStatus();
+
+    // After checking login status, hide splash screen and show appropriate screen
+    setState(() {
+      _showSplashScreen = false;
+      _isLoading = false;  // Ensure _isLoading is also updated
+    });
+  }
+
+  Future<void> _checkLoginStatus() async {
+    try {
+      String? accessToken = await _storage.read(key: 'access_token');
+      String? refreshToken = await _storage.read(key: 'refresh_token');
+
+      if (accessToken != null) {
+        bool isValid = await _verifyToken(accessToken);
+        if (isValid) {
           _isLoggedIn.value = true;
+        } else if (refreshToken != null) {
+          String? newAccessToken = await _refreshToken(refreshToken);
+          if (newAccessToken != null) {
+            await _storage.write(key: 'access_token', value: newAccessToken);
+            _isLoggedIn.value = true;
+          } else {
+            _logoutUser();
+          }
         } else {
           _logoutUser();
         }
-      } else {
-        _logoutUser();
       }
+    } catch (e) {
+      _errorMessage = "An error occurred: $e";
+      _logoutUser();
     }
   }
 
-  Future<bool> _verifyToken(String token) async {
-    final response = await http.get(
-      Uri.parse('${AppConfig.baseUrl}api/token/verify/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
 
-    return response.statusCode == 200;
+    Future<bool> _verifyToken(String token) async {
+    try {
+        final response = await http.get(
+        Uri.parse('${AppConfig.baseUrl}api/token/verify/'),  // Ensure correct endpoint.
+        headers: {
+            'Authorization': 'Bearer $token',
+        },
+        );
+
+        return response.statusCode == 200;
+    } catch (e) {
+      //  Network error (e.g., no internet)
+        _errorMessage = "Network error: $e";  // Set an error message
+        return false;  // Assume token is invalid on network failure
+    }
+
   }
 
   Future<String?> _refreshToken(String refreshToken) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.baseUrl}authentication/token/refresh/'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'refresh': refreshToken}),
-    );
+    try{
+        final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}authentication/token/refresh/'), // Ensure correct endpoint.
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh': refreshToken}),
+        );
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body)['access'];
-    } else {
-      return null;
+        if (response.statusCode == 200) {
+            return jsonDecode(response.body)['access'];
+        } else {
+            _errorMessage = "Failed to refresh token: ${response.statusCode}";  // Set detailed error.
+            return null;
+        }
+    }catch (e) {
+        //  Network error (e.g., no internet)
+        _errorMessage = "Network error: $e";  // Set an error message
+        return null;  // Assume token is invalid on network failure
     }
+
   }
 
   void _logoutUser() async {
@@ -95,20 +134,31 @@ class _MyAppState extends State<MyApp> {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: const Color(0xFFF5C7B8),
       ),
-      // onGenerateRoute: AppRoutes.generateRoute, // Use onGenerateRoute -- PREFERRED for complex routing
-      routes: AppRoutes.routes(_isLoggedIn), // Pass _isLoggedIn
-      home: ValueListenableBuilder<bool>(
-        valueListenable: _isLoggedIn,
-        builder: (context, isLoggedIn, child) {
-          return isLoggedIn
-              ? MainScreen()
-              : WelcomePage(isLoggedIn: _isLoggedIn);
-        },
-      ),
+      routes: AppRoutes.routes(_isLoggedIn),
+      home: _showSplashScreen
+          ? CustomSplashScreen() // Show splash screen initially
+          : ValueListenableBuilder<bool>(
+              valueListenable: _isLoggedIn,
+              builder: (context, isLoggedIn, child) {
+                 if (_errorMessage != null) {
+                  // Display error message (consider a SnackBar or Dialog)
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(_errorMessage!),
+                      backgroundColor: Colors.red,
+                    ));
+                    _errorMessage = null; // Clear the error message after showing it
+                  });
+
+                }
+                return isLoggedIn
+                    ? MainScreen()
+                    : WelcomePage(isLoggedIn: _isLoggedIn);
+              },
+            ),
     );
   }
 }
-
 class MainScreen extends StatefulWidget {
   @override
   _MainScreenState createState() => _MainScreenState();

@@ -8,6 +8,7 @@ import 'who_unfollowed_you.dart';
 import 'followed_but_not_followed_back.dart';
 import 'not_followed_but_following_me.dart';
 import 'search_someone_screen.dart';
+import 'who_removed_you.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -410,6 +411,17 @@ Widget _buildBody() {
                         context,
                         MaterialPageRoute(
                             builder: (context) => UnfollowedYouScreen()),
+                      );
+                    },
+                  ),
+                  _buildCard(
+                    'assets/icons/unfollow.png',
+                    'Who Removed You',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => WhoRemovedYouScreen()),
                       );
                     },
                   ),

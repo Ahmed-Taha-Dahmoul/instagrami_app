@@ -22,4 +22,5 @@ urlpatterns = [
     path('authentication/', include('authentication.urls')),
   # Include the auth app URLs
     path('api/', include('api.urls')),
+    path('payment/', include('payment.urls')),
 ]
