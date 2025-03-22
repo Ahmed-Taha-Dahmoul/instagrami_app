@@ -6,7 +6,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:faker/faker.dart';
 import 'config.dart';
 
-
 class NotFollowedButFollowingMeScreen extends StatefulWidget {
   @override
   _NotFollowedButFollowingMeScreenState createState() =>
@@ -87,7 +86,8 @@ class _NotFollowedButFollowingMeScreenState
     return faker.internet.userAgent();
   }
 
-  Future<void> _removeUser(String userId) async {
+  Future<bool> _removeUser(String userId) async {
+    // Returns a bool
     String? user1Id = await _secureStorage.read(key: 'user1_id');
     String? csrftoken = await _secureStorage.read(key: 'csrftoken');
     String? sessionId = await _secureStorage.read(key: 'session_id');
@@ -102,7 +102,7 @@ class _NotFollowedButFollowingMeScreenState
             content: Text(
                 "csrftoken == null || user1Id == null || sessionId == null || xIgAppId == null.")),
       );
-      return;
+      return false; // Indicate failure
     }
     String userAgent = _generateRandomUserAgent();
 
@@ -131,19 +131,18 @@ class _NotFollowedButFollowingMeScreenState
         _users.removeWhere((user) => user.id == userId);
       });
       _showSuccessOverlay(); // Show success overlay
+      return true; // Indicate success
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
                 "Failed to remove user. Status code: ${response.statusCode}")),
       );
+      return false; // Indicate failure
     }
   }
 
-
-
-   Future<Map<String, dynamic>> _removeFollower(
-    String pk) async {
+  Future<Map<String, dynamic>> _removeFollower(String id) async {
     String url = "${AppConfig.baseUrl}api/remove-follower/";
     String? token = await _secureStorage.read(key: 'access_token');
     try {
@@ -154,7 +153,7 @@ class _NotFollowedButFollowingMeScreenState
           "Content-Type": "application/json",
         },
         body: jsonEncode({
-          "pk": pk, // Send the pk in the request body
+          "id": id, // Send the id in the request body
         }),
       );
 
@@ -175,6 +174,7 @@ class _NotFollowedButFollowingMeScreenState
 
   Future<Future<Object?>> _showRemoveConfirmationDialog(
       String userId, String username) async {
+    // return showGeneralDialog<void>
     return showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -233,10 +233,15 @@ class _NotFollowedButFollowingMeScreenState
                         borderRadius: BorderRadius.circular(8)),
                   ),
                   child: Text('Remove', style: TextStyle(color: Colors.white)),
-                  onPressed: () {
+                  onPressed: () async {
+                    // async
                     Navigator.of(context).pop();
-                    _removeUser(userId); // Corrected function call
-                    _removeFollower(userId);
+                    bool removeSuccess =
+                        await _removeUser(userId); // Use await and store
+                    if (removeSuccess) {
+                      // Check the result
+                      await _removeFollower(userId); // Only call if successful
+                    }
                   },
                 ),
               ],

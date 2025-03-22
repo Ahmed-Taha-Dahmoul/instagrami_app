@@ -25,10 +25,9 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _storage = FlutterSecureStorage();
   final ValueNotifier<bool> _isLoggedIn = ValueNotifier<bool>(false);
-  // ignore: unused_field
-  bool _isLoading = true;
+  bool _isLoading = true; // Keep _isLoading to manage the transition after splash.
   String? _errorMessage;
-  bool _showSplashScreen = true; // Flag to control splash screen display
+  // Removed _showSplashScreen - no longer needed.
 
   @override
   void initState() {
@@ -37,19 +36,18 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initialize() async {
-    // Simulate splash screen duration.
-    await Future.delayed(Duration(seconds: 3));
+    // Combine splash screen display and token verification.
+    await _checkLoginStatus(); // Verify tokens FIRST
 
-    // Now check login status
-    await _checkLoginStatus();
+    // After token check, simulate any *additional* splash screen delay.
+    // If token verification is fast, you might want a minimum splash duration.
+    // If verification *itself* takes a long time, this might be a short delay, or even unnecessary.
+    await Future.delayed(Duration(seconds: 2));
 
-    // After checking login status, hide splash screen and show appropriate screen
     setState(() {
-      _showSplashScreen = false;
-      _isLoading = false;  // Ensure _isLoading is also updated
+      _isLoading = false;  // Hide loading indicator and show main content.
     });
   }
-
   Future<void> _checkLoginStatus() async {
     try {
       String? accessToken = await _storage.read(key: 'access_token');
@@ -65,57 +63,54 @@ class _MyAppState extends State<MyApp> {
             await _storage.write(key: 'access_token', value: newAccessToken);
             _isLoggedIn.value = true;
           } else {
-            _logoutUser();
+            _logoutUser(); // Refresh failed, log out.
           }
         } else {
-          _logoutUser();
+          _logoutUser(); // No valid tokens, log out.
         }
+      } else {
+        _isLoggedIn.value = false; // No access token, so not logged in
       }
     } catch (e) {
       _errorMessage = "An error occurred: $e";
-      _logoutUser();
+       _logoutUser(); // Treat errors as logout to be safe.
     }
   }
 
-
-    Future<bool> _verifyToken(String token) async {
+  Future<bool> _verifyToken(String token) async {
     try {
-        final response = await http.get(
-        Uri.parse('${AppConfig.baseUrl}api/token/verify/'),  // Ensure correct endpoint.
+      final response = await http.get(
+        Uri.parse('${AppConfig.baseUrl}api/token/verify/'),
         headers: {
-            'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $token',
         },
-        );
+      );
 
-        return response.statusCode == 200;
+      return response.statusCode == 200;
     } catch (e) {
-      //  Network error (e.g., no internet)
-        _errorMessage = "Network error: $e";  // Set an error message
-        return false;  // Assume token is invalid on network failure
+      _errorMessage = "Network error: $e";
+      return false;
     }
-
   }
 
   Future<String?> _refreshToken(String refreshToken) async {
-    try{
-        final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}authentication/token/refresh/'), // Ensure correct endpoint.
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}authentication/token/refresh/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refresh': refreshToken}),
-        );
+      );
 
-        if (response.statusCode == 200) {
-            return jsonDecode(response.body)['access'];
-        } else {
-            _errorMessage = "Failed to refresh token: ${response.statusCode}";  // Set detailed error.
-            return null;
-        }
-    }catch (e) {
-        //  Network error (e.g., no internet)
-        _errorMessage = "Network error: $e";  // Set an error message
-        return null;  // Assume token is invalid on network failure
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['access'];
+      } else {
+        _errorMessage = "Failed to refresh token: ${response.statusCode}";
+        return null;
+      }
+    } catch (e) {
+      _errorMessage = "Network error: $e";
+      return null;
     }
-
   }
 
   void _logoutUser() async {
@@ -135,21 +130,20 @@ class _MyAppState extends State<MyApp> {
         scaffoldBackgroundColor: const Color(0xFFF5C7B8),
       ),
       routes: AppRoutes.routes(_isLoggedIn),
-      home: _showSplashScreen
-          ? CustomSplashScreen() // Show splash screen initially
+      home: _isLoading
+          ? CustomSplashScreen()  // Show splash screen while loading
           : ValueListenableBuilder<bool>(
               valueListenable: _isLoggedIn,
               builder: (context, isLoggedIn, child) {
-                 if (_errorMessage != null) {
-                  // Display error message (consider a SnackBar or Dialog)
+                if (_errorMessage != null) {
+                  // Display error using ScaffoldMessenger.
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(_errorMessage!),
                       backgroundColor: Colors.red,
                     ));
-                    _errorMessage = null; // Clear the error message after showing it
+                    _errorMessage = null; // Clear error after displaying.
                   });
-
                 }
                 return isLoggedIn
                     ? MainScreen()

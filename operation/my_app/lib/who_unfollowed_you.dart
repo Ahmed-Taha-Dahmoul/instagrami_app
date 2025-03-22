@@ -58,7 +58,7 @@ class _UnfollowedYouScreenState extends State<UnfollowedYouScreen> {
     }
   }
 
-  Future<void> _removeUser(String userPk) async {
+  Future<void> _removeUser(String id) async {
     String url = "${AppConfig.baseUrl}api/remove-unfollowed-you/";
     String? token = await _secureStorage.read(key: 'access_token');
 
@@ -76,12 +76,12 @@ class _UnfollowedYouScreenState extends State<UnfollowedYouScreen> {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode({"user_pk": userPk}),
+        body: jsonEncode({"user_id": id}),
       );
 
       if (response.statusCode == 200) {
         setState(() {
-          _unfollowedUsers.removeWhere((user) => user.id == userPk);
+          _unfollowedUsers.removeWhere((user) => user.id == id);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("User removed successfully.")),

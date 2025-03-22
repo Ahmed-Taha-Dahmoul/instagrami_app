@@ -8,8 +8,7 @@ import json
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import InstagramUserDataSerializer
-from django.shortcuts import get_object_or_404
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -314,18 +313,18 @@ def remove_following(request):
         # Fetch InstagramUser_data for the authenticated user
         user_data = InstagramUser_data.objects.get(user=request.user)
 
-        # Extract pk from request body
-        pk = request.data.get("pk")
-        if not pk:
-            return Response({"error": "Missing 'pk' in request body"}, status=status.HTTP_400_BAD_REQUEST)
+        # Extract id from request body
+        id = request.data.get("id")
+        if not id:
+            return Response({"error": "Missing 'id' in request body"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure pk is in the following list and get the user data from following list
-        user_in_following = next((user for user in user_data.new_following_list if user["pk"] == pk), None)
+        # Ensure id is in the following list and get the user data from following list
+        user_in_following = next((user for user in user_data.new_following_list if user["id"] == id), None)
         if not user_in_following:
             return Response({"error": "User not found in following list"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Remove the user from the new following list
-        user_data.new_following_list = [f for f in user_data.new_following_list if f["pk"] != pk]
+        user_data.new_following_list = [f for f in user_data.new_following_list if f["id"] != id]
 
         # Decrease the count if it's greater than zero
         if user_data.instagram_following_count > 0:
@@ -333,7 +332,7 @@ def remove_following(request):
 
         # Remove the user from who_i_follow_he_dont_followback list (no extra logic)
         user_data.who_i_follow_he_dont_followback = [
-            user for user in user_data.who_i_follow_he_dont_followback if user["pk"] != pk
+            user for user in user_data.who_i_follow_he_dont_followback if user["id"] != id
         ]
 
         # Save changes
@@ -385,26 +384,26 @@ def remove_follower(request):
         # Fetch InstagramUser_data for the authenticated user
         user_data = InstagramUser_data.objects.get(user=request.user)
 
-        # Extract pk from request body
-        pk = request.data.get("pk")
-        if not pk:
-            return Response({"error": "Missing 'pk' in request body"}, status=status.HTTP_400_BAD_REQUEST)
+        # Extract id from request body
+        id = request.data.get("id")
+        if not id:
+            return Response({"error": "Missing 'id' in request body"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure pk is in the follower list
-        user_in_followers = next((user for user in user_data.new_followers_list if user["pk"] == pk), None)
+        # Ensure id is in the follower list
+        user_in_followers = next((user for user in user_data.new_followers_list if user["id"] == id), None)
         if not user_in_followers:
             return Response({"error": "User not found in follower list"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Remove the user from the new follower list
-        user_data.new_followers_list = [f for f in user_data.new_followers_list if f["pk"] != pk]
+        user_data.new_followers_list = [f for f in user_data.new_followers_list if f["id"] != id]
 
         # Decrease the follower count if it's greater than zero
         if user_data.instagram_follower_count > 0:
             user_data.instagram_follower_count -= 1
 
-        # Update who I follow but they don't follow back with full user data (not just pk)
-        follower_ids = {user["pk"] for user in user_data.new_followers_list}
-        user_data.who_i_dont_follow_he_followback = [user for user in user_data.who_i_dont_follow_he_followback if user["pk"] in follower_ids]
+        # Update who I follow but they don't follow back with full user data (not just id)
+        follower_ids = {user["id"] for user in user_data.new_followers_list}
+        user_data.who_i_dont_follow_he_followback = [user for user in user_data.who_i_dont_follow_he_followback if user["id"] in follower_ids]
 
         # Save changes
         user_data.save()
@@ -450,16 +449,16 @@ def get_unfollowed_you(request):
 @permission_classes([IsAuthenticated])
 def remove_unfollowed_you(request):
     user = request.user
-    user_pk_to_remove = request.data.get('user_pk')  # Get user_pk from request body
+    user_id_to_remove = request.data.get('user_id')  # Get user_id from request body
 
-    if not user_pk_to_remove:
-        return Response({"error": "user_pk is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not user_id_to_remove:
+        return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         instagram_user_data = InstagramUser_data.objects.get(user=user)
 
-        # Find the user in who_removed_follower by pk
-        user_to_remove = next((user for user in instagram_user_data.who_removed_follower if user["pk"] == user_pk_to_remove), None)
+        # Find the user in who_removed_follower by id
+        user_to_remove = next((user for user in instagram_user_data.who_removed_follower if user["id"] == user_id_to_remove), None)
 
         if user_to_remove:
             instagram_user_data.who_removed_follower.remove(user_to_remove)  # Remove the full user data
@@ -467,7 +466,7 @@ def remove_unfollowed_you(request):
 
             return Response({"message": "User removed successfully"}, status=status.HTTP_200_OK)
         else:
-            return Response({"error": "User_pk not found in who_removed_follower"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "User_id not found in who_removed_follower"}, status=status.HTTP_404_NOT_FOUND)
 
     except InstagramUser_data.DoesNotExist:
         return Response({"error": "Instagram user data not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -510,16 +509,16 @@ def get_who_removed_you(request):
 @permission_classes([IsAuthenticated])
 def remove_removed_you(request):
     user = request.user
-    user_pk_to_remove = request.data.get('user_pk')  # Get user_pk from request body
+    user_id_to_remove = request.data.get('user_id')  # Get user_id from request body
 
-    if not user_pk_to_remove:
-        return Response({"error": "user_pk is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not user_id_to_remove:
+        return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         instagram_user_data = InstagramUser_data.objects.get(user=user)
 
-        # Find the user in who_removed_following by pk
-        user_to_remove = next((user for user in instagram_user_data.who_removed_following if user["pk"] == user_pk_to_remove), None)
+        # Find the user in who_removed_following by id
+        user_to_remove = next((user for user in instagram_user_data.who_removed_following if user["id"] == user_id_to_remove), None)
 
         if user_to_remove:
             instagram_user_data.who_removed_following.remove(user_to_remove)  # Remove the full user data
@@ -527,7 +526,7 @@ def remove_removed_you(request):
 
             return Response({"message": "User removed successfully"}, status=status.HTTP_200_OK)
         else:
-            return Response({"error": "User_pk not found in who_removed_following"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "User_id not found in who_removed_following"}, status=status.HTTP_404_NOT_FOUND)
 
     except InstagramUser_data.DoesNotExist:
         return Response({"error": "Instagram user data not found"}, status=status.HTTP_404_NOT_FOUND)

@@ -29,7 +29,6 @@ class _FollowedButNotFollowedBackScreenState
   }
 
   Future<void> fetchUsers() async {
-    // ... (same as before, no changes needed here) ...
     if (_isLoading || !_hasMoreData) return;
 
     setState(() {
@@ -74,7 +73,6 @@ class _FollowedButNotFollowedBackScreenState
   }
 
   void _scrollListener() {
-    // ... (same as before, no changes needed here) ...
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 100 &&
         !_isLoading) {
@@ -82,12 +80,13 @@ class _FollowedButNotFollowedBackScreenState
     }
   }
 
-  Future<void> _unfollowUser(String userId) async {
+  Future<bool> _unfollowUser(String userId) async {
+    // Return a bool
     String? user1Id = await _secureStorage.read(key: 'user1_id');
     String? csrftoken = await _secureStorage.read(key: 'csrftoken');
     String? sessionId = await _secureStorage.read(key: 'session_id');
     String? xIgAppId = await _secureStorage.read(key: 'x_ig_app_id');
-    
+
     if (csrftoken == null ||
         user1Id == null ||
         sessionId == null ||
@@ -95,7 +94,7 @@ class _FollowedButNotFollowedBackScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Missing required authentication data.")),
       );
-      return;
+      return false; // Indicate failure
     }
 
     final headers = {
@@ -123,19 +122,19 @@ class _FollowedButNotFollowedBackScreenState
         _users.removeWhere((user) => user.id == userId);
       });
       // Show the custom success overlay
-      _showSuccessOverlay(); // Call our new function!
+      _showSuccessOverlay();
+      return true; // Indicate success
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
                 "Failed to unfollow user. Status code: ${response.statusCode}")),
       );
+      return false; // Indicate failure
     }
   }
 
-
-  Future<Map<String, dynamic>> _removeFollowing(
-    String pk) async {
+  Future<Map<String, dynamic>> _removeFollowing(String id) async {
     String url = "${AppConfig.baseUrl}api/remove-following/";
     String? token = await _secureStorage.read(key: 'access_token');
     try {
@@ -146,7 +145,7 @@ class _FollowedButNotFollowedBackScreenState
           "Content-Type": "application/json",
         },
         body: jsonEncode({
-          "pk": pk, // Send the pk in the request body
+          "id": id, // Send the id in the request body
         }),
       );
 
@@ -165,12 +164,9 @@ class _FollowedButNotFollowedBackScreenState
     }
   }
 
-  // The dramatically improved dialog!
   Future<Future<Object?>> _showUnfollowConfirmationDialog(
       String userId, String username) async {
-    // Corrected return type: Future<void>
     return showGeneralDialog(
-      // No need to await or store the result.
       context: context,
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
@@ -229,10 +225,14 @@ class _FollowedButNotFollowedBackScreenState
                   ),
                   child:
                       Text('Unfollow', style: TextStyle(color: Colors.white)),
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.of(context).pop(); // Close the dialog first.
-                    _unfollowUser(userId); // Then unfollow.
-                    _removeFollowing(userId);
+                    // Now, call _unfollowUser and await its result
+                    bool unfollowSuccess = await _unfollowUser(userId);
+                    if (unfollowSuccess) {
+                      // Only call _removeFollowing if _unfollowUser was successful
+                      await _removeFollowing(userId);
+                    }
                   },
                 ),
               ],
