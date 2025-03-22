@@ -433,7 +433,6 @@ class User {
   final String id;
   final String username;
   final String fullName;
-  final bool isPrivate;
   final bool isVerified;
   final String profilePicUrl;
 
@@ -441,7 +440,6 @@ class User {
     required this.id,
     required this.username,
     required this.fullName,
-    required this.isPrivate,
     required this.isVerified,
     required this.profilePicUrl,
   });
@@ -451,7 +449,6 @@ class User {
       id: json['id'],
       username: json['username'],
       fullName: json['full_name'],
-      isPrivate: json['is_private'],
       isVerified: json['is_verified'],
       profilePicUrl: json['profile_pic_url'],
     );

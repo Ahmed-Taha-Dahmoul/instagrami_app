@@ -1,149 +1,229 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:faker/faker.dart';
 import 'config.dart';
 
 class InstagramService {
   // Method to generate random user-agent using the faker package
+  // ignore: unused_element
   static String _generateRandomUserAgent() {
     final faker = Faker();
     return faker.internet.userAgent();
   }
 
-  static Future<List<dynamic>?> getInstagramFollowing(
-      String userId, String sessionId, String csrftoken, String xIgAppId) async {
-    
-    List<dynamic> following = [];
+
+  
+
+
+   static Future<List<Map<String, dynamic>>?> getInstagramFollowing(
+    String userId,
+    String sessionId,
+    String csrftoken,
+    String xIgAppId,
+  ) async {
+    List<Map<String, dynamic>> allFollowing = [];
     String? nextMaxId;
-    int maxRetries = 3;
-    int count = 200;
-    Random random = Random();
+    String url = "https://www.instagram.com/graphql/query/";
+    String queryHash = "58712303d941c6855d4e888c5f0cd22f"; // Correct query hash for FOLLOWING
+    const int first = 50;
 
-    while (true) {
-      String url =
-          "https://www.instagram.com/api/v1/friendships/$userId/following/?count=$count";
+    String userAgent = _generateRandomUserAgent();
 
-      if (nextMaxId != null) {
-        url += "&max_id=$nextMaxId";
-      }
-
-      int retries = 0;
-      while (retries < maxRetries) {
-        try {
-          // Generate a new User-Agent for each request
-          String userAgent = _generateRandomUserAgent();
-
-          final headers = {
-            "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
-            "referer": "https://www.instagram.com/$userId/following/",
-            "x-csrftoken": csrftoken,
-            "x-ig-app-id": xIgAppId,
-            "user-agent": userAgent, // Add random user-agent here
-          };
-
-          print("Fetching: $url");
-          final response = await http.get(Uri.parse(url), headers: headers);
-
-          if (response.statusCode != 200) {
-            throw Exception("Request failed with status: ${response.statusCode}");
-          }
-
-          final data = jsonDecode(response.body);
-          if (!data.containsKey('users')) {
-            return null;
-          }
-
-          following.addAll(data['users']);
-          nextMaxId = data['next_max_id'];
-
-          if (nextMaxId == null && count == 200) {
-            count = 1;
-            break;
-          }
-
-          if (nextMaxId == null) {
-            break;
-          }
-
-          // Random delay between 1 and 3 seconds
-          int delay = random.nextInt(3) + 1;
-          print("Waiting for $delay seconds...");
-          await Future.delayed(Duration(seconds: delay));
-
-          break;
-        } catch (e) {
-          retries++;
-          if (retries < maxRetries) {
-            print("Retrying in 5 seconds...");
-            await Future.delayed(Duration(seconds: 5));
-          } else {
-            return null;
-          }
-        }
-      }
-
-      if (nextMaxId == null && count == 1) {
-        break;
-      }
-    }
-
-    return following;
-  }
-
-  static Future<List<dynamic>?> getInstagramFollowers(
-      String userId, String sessionId, String csrftoken, String xIgAppId) async {
-    List<dynamic> allFollowers = [];  // List to store all fetched followers
-    String? nextMaxId = '';  // Variable to store nextMaxId for pagination
-
-    // URL to fetch followers
-    String url = 'https://www.instagram.com/api/v1/friendships/$userId/followers/?count=200';
-
-    // Headers
-    Map<String, String> headers = {
+    final Map<String, String> headers = {
       "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
-      "referer": "https://www.instagram.com/$userId/followers/",
       "x-csrftoken": csrftoken,
       "x-ig-app-id": xIgAppId,
+      "user-agent": userAgent,
     };
-
+    print("Fetching Instagram following for user ID: $userId");
     try {
       while (true) {
-        // Generate a new random user-agent for each request
-        String userAgent = _generateRandomUserAgent();
-        headers["user-agent"] = userAgent;
+        final Map<String, dynamic> variables = {
+          "id": userId,
+          "first": first,
+          "after": nextMaxId,
+        };
 
-        // If there's a nextMaxId, append it to the URL for pagination
-        String paginatedUrl = nextMaxId != '' ? '$url&max_id=$nextMaxId' : url;
-        print(paginatedUrl);
-        // Perform the GET request
-        final response = await http.get(Uri.parse(paginatedUrl), headers: headers);
+        final Map<String, String> params = {
+          "query_hash": queryHash,
+          "variables": jsonEncode(variables),
+        };
 
-        // Check if the request was successful
+        final Uri uri = Uri.parse(url).replace(queryParameters: params);
+        final http.Response response = await http.get(uri, headers: headers);
+
         if (response.statusCode == 200) {
-          Map<String, dynamic> data = json.decode(response.body);
+          final Map<String, dynamic> data = jsonDecode(response.body);
 
-          // Add fetched followers to the list
-          allFollowers.addAll(data['users']);
+          if (data.containsKey('data') &&
+              data['data'] != null &&
+              data['data'].containsKey('user') &&
+              data['data']['user'] != null &&
+              data['data']['user'].containsKey('edge_follow') &&
+              data['data']['user']['edge_follow'] != null) {
+            final List<dynamic> edges =
+                data['data']['user']['edge_follow']['edges'];
 
-          // Check if there is more data to fetch
-          nextMaxId = data['next_max_id'];
-          if (nextMaxId == null || nextMaxId.isEmpty) {
-            break;  // No more followers to fetch, exit the loop
+            for (var edge in edges) {
+              final node = edge['node'];
+              allFollowing.add({
+                'id': node['id'],
+                'username': node['username'],
+                'full_name': node['full_name'],
+                'profile_pic_url': node['profile_pic_url'],
+                'is_verified' : node['is_verified'],
+              });
+            }
+
+            if (data['data']['user']['edge_follow'].containsKey('page_info') &&
+                data['data']['user']['edge_follow']['page_info'] != null) {
+              final pageInfo = data['data']['user']['edge_follow']['page_info'];
+
+              // Check both 'has_next_page' and 'end_cursor'
+              if (pageInfo.containsKey('has_next_page') &&
+                  pageInfo['has_next_page'] == false) {
+                break; // No more pages, exit the loop
+              }
+
+              if (pageInfo.containsKey('end_cursor')) {
+                nextMaxId = pageInfo['end_cursor'];
+                if (nextMaxId == null || nextMaxId.isEmpty) {
+                    break;  // Exit if end_cursor is null or empty
+                }
+
+              } else {
+                nextMaxId = null;
+                break; // No end_cursor, assume no more pages
+              }
+            } else {
+              break; // No page_info, exit loop
+            }
+          } else {
+            print(
+                "Error: Unexpected response structure. 'data', 'user', or 'edge_follow' is missing.");
+            return null;
           }
         } else {
-          print('Error fetching followers: ${response.statusCode} - ${response.body}');
-          break;  // Exit the loop if there is an error
+          print(
+              "Error fetching following: ${response.statusCode} - ${response.body}");
+          return null;
         }
       }
 
-      // Return the list of all followers
-      return allFollowers;
+      return allFollowing;
     } catch (e) {
-      print('An error occurred: $e');
-      return null;  // Return null in case of an error
+      print("An error occurred: $e");
+      return null;
     }
   }
+
+
+
+
+  static Future<List<Map<String, dynamic>>?> getInstagramFollowers(
+      String userId,
+      String sessionId,
+      String csrftoken,
+      String xIgAppId,
+    ) async {
+      List<Map<String, dynamic>> allFollowers = [];
+      String? nextMaxId;
+      String url = "https://www.instagram.com/graphql/query/";
+      String queryHash = "37479f2b8209594dde7facb0d904896a"; // Correct query hash for FOLLOWERS
+      const int first = 50;
+
+      String userAgent = _generateRandomUserAgent();
+
+      final Map<String, String> headers = {
+        "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
+        "x-csrftoken": csrftoken,
+        "x-ig-app-id": xIgAppId,
+        "user-agent": userAgent,
+      };
+      print("Fetching Instagram followers for user ID: $userId");
+
+      try {
+        while (true) {
+          final Map<String, dynamic> variables = {
+            "id": userId,
+            "first": first,
+            "after": nextMaxId,
+          };
+
+          final Map<String, String> params = {
+            "query_hash": queryHash,
+            "variables": jsonEncode(variables),
+          };
+
+          final Uri uri = Uri.parse(url).replace(queryParameters: params);
+          final http.Response response = await http.get(uri, headers: headers);
+
+          if (response.statusCode == 200) {
+            final Map<String, dynamic> data = jsonDecode(response.body);
+
+            if (data.containsKey('data') &&
+                data['data'] != null &&
+                data['data'].containsKey('user') &&
+                data['data']['user'] != null &&
+                data['data']['user'].containsKey('edge_followed_by') &&
+                data['data']['user']['edge_followed_by'] != null) {
+              final List<dynamic> edges =
+                  data['data']['user']['edge_followed_by']['edges'];
+
+              for (var edge in edges) {
+                final node = edge['node'];
+                allFollowers.add({
+                  'id': node['id'],
+                  'username': node['username'],
+                  'full_name': node['full_name'],
+                  'profile_pic_url': node['profile_pic_url'],
+                  'is_verified': node['is_verified'],
+                });
+              }
+
+              if (data['data']['user']['edge_followed_by'].containsKey('page_info') &&
+                  data['data']['user']['edge_followed_by']['page_info'] != null) {
+                final pageInfo = data['data']['user']['edge_followed_by']['page_info'];
+
+                if (pageInfo.containsKey('has_next_page') &&
+                    pageInfo['has_next_page'] == false) {
+                  break;
+                }
+
+                if (pageInfo.containsKey('end_cursor')) {
+                  nextMaxId = pageInfo['end_cursor'];
+                  if (nextMaxId == null || nextMaxId.isEmpty) {
+                      break;
+                  }
+
+                } else {
+                  nextMaxId = null;
+                  break;
+                }
+              } else {
+                break;
+              }
+            } else {
+              print(
+                  "Error: Unexpected response structure. 'data', 'user', or 'edge_followed_by' is missing.");
+              return null;
+            }
+          } else {
+            print(
+                "Error fetching followers: ${response.statusCode} - ${response.body}");
+            return null;
+          }
+        }
+
+        return allFollowers;
+      } catch (e) {
+        print("An error occurred: $e");
+        return null;
+      }
+    }
+
+
+
 
 }
 
@@ -196,7 +276,7 @@ Future<bool> fetchAndSendfollowing_followers(
     List<dynamic>? followingData = await InstagramService.getInstagramFollowing(
         userId, sessionId, csrftoken, xIgAppId);
     print("following data !!!!!!!!!!!!!!!!!!!!!!");
-    print(followingData);
+    
     // Fetch Followers Data
     List<dynamic>? followersData = await InstagramService.getInstagramFollowers(
         userId, sessionId, csrftoken, xIgAppId);

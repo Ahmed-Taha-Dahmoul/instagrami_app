@@ -102,6 +102,7 @@ def get_payment_history(request):
             "error": "An error occurred",
             "details": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 
 
@@ -130,3 +131,36 @@ def get_user_credit(request):
             "error": "An error occurred",
             "details": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def user_info(request):
+    user = request.user  # Get the authenticated user
+
+    # Return user details
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name
+    })

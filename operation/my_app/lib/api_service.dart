@@ -77,18 +77,16 @@ class ApiService {
         "x-ig-app-id": xIgAppId,
         "user-agent": userAgent,
       };
-      print("Headers: $headers");
+      
 
       print("Sending request to Instagram...");
       final response = await http.get(Uri.parse(url), headers: headers);
 
       print("Status Code: ${response.statusCode}");
-      print("Response Headers: ${response.headers}");
-      print("Response Body: ${response.body}");
+      
 
       if (response.statusCode == 200) {
         Map<String, dynamic> userInfo = json.decode(response.body);
-        print(userInfo);
         // Check if follower_count and following_count exist
         if (userInfo.containsKey('user') &&
           userInfo['user'].containsKey('follower_count') &&
@@ -109,7 +107,6 @@ class ApiService {
             return true; // Successfully saved the user data
           } else {
             print("Failed to save user data: ${saveResponse.statusCode}");
-            print("Save Response Body: ${saveResponse.body}"); // Log the save response body
             return false; // Failed to save user data
           }
         } else {

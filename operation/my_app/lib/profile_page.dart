@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-//import 'bottom_nav_bar.dart'; // No longer needed here
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Import the secure storage
+import 'config.dart'; // Import your app config
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -7,55 +10,79 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // Add any state variables you need for the profile page here.
-  String _userName = "Example User"; // Example data
-  String _email = "user@example.com"; // Example data
+  Map<String, dynamic>? userInfo;
+  bool isLoading = true;
+  String? errorMessage;
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
-  // You can add methods for fetching user data, updating profile, etc.
+  @override
+  void initState() {
+    super.initState();
+    fetchUserInfo();
+  }
+
+  Future<void> fetchUserInfo() async {
+    // Retrieve the access token from secure storage
+    String? token = await _secureStorage.read(key: 'access_token');
+    
+    if (token == null) {
+      setState(() {
+        errorMessage = "No access token found. Please log in again.";
+        isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse("${AppConfig.baseUrl}user-info/"), // Adjust endpoint if needed
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          userInfo = jsonDecode(response.body);
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          errorMessage = "Failed to fetch user info. Status: ${response.statusCode}";
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Error: $e";
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Profile'),
+      appBar: AppBar(title: Text("Profile")),
+      body: Center(
+        child: isLoading
+            ? CircularProgressIndicator()
+            : errorMessage != null
+                ? Text(errorMessage!)
+                : userInfo != null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("ID: ${userInfo!['id']}"),
+                          Text("Username: ${userInfo!['username']}"),
+                          Text("Email: ${userInfo!['email']}"),
+                          Text("First Name: ${userInfo!['first_name']}"),
+                          Text("Last Name: ${userInfo!['last_name']}"),
+                        ],
+                      )
+                    : Text("No data available"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Username:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              _userName,
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Email:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              _email,
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                // Example: Implement edit profile functionality
-                // You might navigate to an edit profile screen:
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileScreen()));
-              },
-              child: Text('Edit Profile'),
-            ),
-          ],
-        ),
-      ),
-      //bottomNavigationBar: BottomNavBar(onTabSelected: _onTabSelected, initialIndex: 1), // NO LONGER NEEDED
     );
   }
-
-  // No _onTabSelected needed here anymore.
 }

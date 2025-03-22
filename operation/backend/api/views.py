@@ -138,17 +138,17 @@ def update_follow_relationships(instagram_data):
     """Update mutual follow relationships with full user info."""
     
     # Convert followers and following lists to sets of user dictionaries
-    following_dict = {user["pk"]: user for user in instagram_data.new_following_list}
-    followers_dict = {user["pk"]: user for user in instagram_data.new_followers_list}
+    following_dict = {user["id"]: user for user in instagram_data.new_following_list}
+    followers_dict = {user["id"]: user for user in instagram_data.new_followers_list}
 
     # Find who the user follows but they don't follow back (store full user info)
     instagram_data.who_i_follow_he_dont_followback = [
-        following_dict[pk] for pk in following_dict.keys() if pk not in followers_dict
+        following_dict[id] for id in following_dict.keys() if id not in followers_dict
     ]
 
     # Find who follows the user but the user doesn't follow back (store full user info)
     instagram_data.who_i_dont_follow_he_followback = [
-        followers_dict[pk] for pk in followers_dict.keys() if pk not in following_dict
+        followers_dict[id] for id in followers_dict.keys() if id not in following_dict
     ]
 
     instagram_data.save()
@@ -164,11 +164,11 @@ def update_removed_follow(instagram_data, old_list, new_list, field_name):
         new_list = []
 
     # Ensure old_list and new_list contain dictionaries
-    old_dict = {user["pk"]: user for user in old_list if isinstance(user, dict) and "pk" in user}
-    new_dict = {user["pk"]: user for user in new_list if isinstance(user, dict) and "pk" in user}
+    old_dict = {user["id"]: user for user in old_list if isinstance(user, dict) and "id" in user}
+    new_dict = {user["id"]: user for user in new_list if isinstance(user, dict) and "id" in user}
 
     # Find removed users (store full user info)
-    removed_users = [old_dict[pk] for pk in old_dict.keys() if pk not in new_dict]
+    removed_users = [old_dict[id] for id in old_dict.keys() if id not in new_dict]
 
     # Retrieve the existing removed list from the model
     existing_removed = getattr(instagram_data, field_name, [])
@@ -177,10 +177,10 @@ def update_removed_follow(instagram_data, old_list, new_list, field_name):
     if not isinstance(existing_removed, list):
         existing_removed = []
 
-    existing_removed_dict = {user["pk"]: user for user in existing_removed if isinstance(user, dict) and "pk" in user}
+    existing_removed_dict = {user["id"]: user for user in existing_removed if isinstance(user, dict) and "id" in user}
 
     # Merge existing and new removed users while ensuring uniqueness
-    updated_removed_dict = {**existing_removed_dict, **{user["pk"]: user for user in removed_users}}
+    updated_removed_dict = {**existing_removed_dict, **{user["id"]: user for user in removed_users}}
 
     # Assign the updated list back to the correct field
     setattr(instagram_data, field_name, list(updated_removed_dict.values()))
