@@ -25,7 +25,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final _storage = FlutterSecureStorage();
   final ValueNotifier<bool> _isLoggedIn = ValueNotifier<bool>(false);
-  bool _isLoading = true; // Keep _isLoading to manage the transition after splash.
+  bool _isLoading =
+      true; // Keep _isLoading to manage the transition after splash.
   String? _errorMessage;
   // Removed _showSplashScreen - no longer needed.
 
@@ -45,9 +46,10 @@ class _MyAppState extends State<MyApp> {
     await Future.delayed(Duration(seconds: 2));
 
     setState(() {
-      _isLoading = false;  // Hide loading indicator and show main content.
+      _isLoading = false; // Hide loading indicator and show main content.
     });
   }
+
   Future<void> _checkLoginStatus() async {
     try {
       String? accessToken = await _storage.read(key: 'access_token');
@@ -73,7 +75,7 @@ class _MyAppState extends State<MyApp> {
       }
     } catch (e) {
       _errorMessage = "An error occurred: $e";
-       _logoutUser(); // Treat errors as logout to be safe.
+      _logoutUser(); // Treat errors as logout to be safe.
     }
   }
 
@@ -127,11 +129,11 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        scaffoldBackgroundColor: const Color(0xFFF5C7B8),
+        scaffoldBackgroundColor: const Color.fromARGB(255, 255, 255, 255),
       ),
       routes: AppRoutes.routes(_isLoggedIn),
       home: _isLoading
-          ? CustomSplashScreen()  // Show splash screen while loading
+          ? CustomSplashScreen() // Show splash screen while loading
           : ValueListenableBuilder<bool>(
               valueListenable: _isLoggedIn,
               builder: (context, isLoggedIn, child) {
@@ -153,6 +155,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
+
 class MainScreen extends StatefulWidget {
   @override
   _MainScreenState createState() => _MainScreenState();
