@@ -92,6 +92,8 @@ class _HomePageState extends State<HomePage>
                   await fetchAndSendfollowing_followers(
                       accessToken, userId, sessionId, csrftoken, xIgAppId);
               if (instagram_data_feched_saved) {
+                // ignore: unused_local_variable
+                var response = await ApiService.changeUnfollowStatus(accessToken, false);
                 bool flagUpdated =
                     await FirstTimeFlagService.postFirstTimeFlag(accessToken, false);
                 if (flagUpdated) {
