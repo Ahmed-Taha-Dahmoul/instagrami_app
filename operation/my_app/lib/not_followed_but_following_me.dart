@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:faker/faker.dart';
-import 'config.dart';
+// import 'package:faker/faker.dart'; // Keep if you actually need Faker for other things, otherwise remove
+import 'config.dart'; // Ensure this import points to your config file
 
 class NotFollowedButFollowingMeScreen extends StatefulWidget {
   @override
@@ -20,16 +20,25 @@ class _NotFollowedButFollowingMeScreenState
   bool _isLoading = false;
   bool _hasMoreData = true;
   final ScrollController _scrollController = ScrollController();
-  bool _isInitialized = false;
-  Map<String, dynamic>? instagramData;
+  bool _isInitialized = false; // To track if initial fetch has happened
+  // Map<String, dynamic>? instagramData; // Keep if needed elsewhere
 
   @override
   void initState() {
     super.initState();
+    // Add listener to scroll controller for pagination
     _scrollController.addListener(_scrollListener);
+    // Trigger initial fetch after the first frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) { // Check if the widget is still in the tree
+        _fetchUsers(); // Call the initial fetch
+      }
+    });
   }
 
-  Future<void> fetchUsers() async {
+  // Fetch users who follow you but you don't follow back
+  Future<void> _fetchUsers() async {
+    // Prevent concurrent fetches or fetching when no more data
     if (_isLoading || !_hasMoreData) return;
 
     setState(() {
@@ -38,57 +47,75 @@ class _NotFollowedButFollowingMeScreenState
 
     try {
       String? token = await _secureStorage.read(key: 'access_token');
-      if (token == null) throw Exception('Access token not found');
+      if (token == null) {
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               SnackBar(content: Text('Authentication error. Please log in again.')),
+             );
+          }
+          throw Exception('Access token not found');
+      }
 
       final response = await http.get(
+        // Ensure endpoint matches backend route for "users following me but I don't follow back"
         Uri.parse(
             '${AppConfig.baseUrl}api/get-dont-follow-back-you/?page=$_currentPage'),
         headers: {
           'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
         },
       );
 
+      if (!mounted) return; // Check if widget is still mounted
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        List<dynamic> usersJson = data['results'];
+        List<dynamic> usersJson = data['results'] ?? [];
 
         setState(() {
           _users.addAll(usersJson.map((user) => User.fromJson(user)).toList());
           _hasMoreData = data['next'] != null;
-          if (_hasMoreData) _currentPage++;
-          _isInitialized = true;
+          if (_hasMoreData) {
+            _currentPage++;
+          }
+          _isInitialized = true; // Mark as initialized AFTER successful fetch
         });
       } else {
-        throw Exception('Failed to load users');
+         print('Failed to load users. Status: ${response.statusCode}, Body: ${response.body}');
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Failed to load users. Status: ${response.statusCode}')),
+         );
       }
     } catch (e) {
-      print('Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load users: $e')),
-      );
+      print('Error fetching users: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An error occurred: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+         setState(() {
+           _isLoading = false;
+         });
+      }
     }
   }
 
+  // Scroll listener for infinite scrolling
   void _scrollListener() {
+    // Check if scrolled close to the bottom and not currently loading
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 100 &&
-        !_isLoading) {
-      fetchUsers();
+            _scrollController.position.maxScrollExtent - 200 && // Threshold
+        !_isLoading && _hasMoreData) {
+      _fetchUsers(); // Fetch next page
     }
   }
 
-  static String _generateRandomUserAgent() {
-    final faker = Faker();
-    return faker.internet.userAgent();
-  }
-
-  Future<bool> _removeUser(String userId) async {
-    // Returns a bool
-    String? user1Id = await _secureStorage.read(key: 'user1_id');
+  // --- Instagram API Call ---
+  // Remove a follower directly on Instagram
+  Future<bool> _removeFollowerOnInstagram(String userId) async {
+    String? user1Id = await _secureStorage.read(key: 'user1_id'); // Your IG User ID
     String? csrftoken = await _secureStorage.read(key: 'csrftoken');
     String? sessionId = await _secureStorage.read(key: 'session_id');
     String? xIgAppId = await _secureStorage.read(key: 'x_ig_app_id');
@@ -97,54 +124,96 @@ class _NotFollowedButFollowingMeScreenState
         user1Id == null ||
         sessionId == null ||
         xIgAppId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                "csrftoken == null || user1Id == null || sessionId == null || xIgAppId == null.")),
-      );
-      return false; // Indicate failure
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Missing required Instagram authentication data.")),
+        );
+      }
+      return false;
     }
-    String userAgent = _generateRandomUserAgent();
+
+    // Use a consistent or semi-realistic User-Agent if possible
+    // String userAgent = _generateRandomUserAgent(); // Can be risky if too random
+    String userAgent = 'Instagram 150.0.0.0.000 Android (28/9; 480dpi; 1080x2137; OnePlus; ONEPLUS A6013; OnePlus6T; qcom; en_US; 123456789)'; // Example
 
     final headers = {
-      "cookie":
-          "csrftoken=$csrftoken; ds_user_id=$user1Id; sessionid=$sessionId",
-      "referer":
-          "https://www.instagram.com/api/v1/web/friendships/$userId/remove_follower/",
+      "cookie": "csrftoken=$csrftoken; ds_user_id=$user1Id; sessionid=$sessionId",
+      "referer": "https://www.instagram.com/$user1Id/following/", // Common referer
       "x-csrftoken": csrftoken,
       "x-ig-app-id": xIgAppId,
       'Content-Type': 'application/x-www-form-urlencoded',
       "user-agent": userAgent,
+      "x-instagram-ajax": "1", // Often required
     };
 
-    final response = await http.post(
-      Uri.parse(
-          'https://www.instagram.com/api/v1/web/friendships/$userId/remove_follower/'),
-      headers: headers,
-      body: {},
-    );
-    print('remove Response Status Code: ${response.statusCode}');
-    print('remove Response Body: ${response.body}');
+    // Body parameters might be required for this endpoint
+    final body = {
+      'user_id': userId, // The ID of the user to remove
+      // '_uuid': 'GENERATED_UUID', // Sometimes needed
+      // '_uid': user1Id,
+      // '_csrftoken': csrftoken
+    };
 
-    if (response.statusCode == 200) {
-      setState(() {
-        _users.removeWhere((user) => user.id == userId);
-      });
-      _showSuccessOverlay(); // Show success overlay
-      return true; // Indicate success
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                "Failed to remove user. Status code: ${response.statusCode}")),
-      );
-      return false; // Indicate failure
+    try {
+        final response = await http.post(
+          // Double-check the exact endpoint for removing a follower
+          // It might be under /friendships/remove_follower/ or similar
+          Uri.parse(
+              'https://www.instagram.com/api/v1/friendships/remove_follower/$userId/'),
+          headers: headers,
+          body: body, // Send necessary body parameters
+        );
+
+        print('Instagram Remove Follower Response Status Code: ${response.statusCode}');
+        print('Instagram Remove Follower Response Body: ${response.body}');
+
+        if (!mounted) return false;
+
+        if (response.statusCode == 200) {
+           final responseData = json.decode(response.body);
+           if (responseData['status'] == 'ok') {
+              print('Successfully removed follower $userId on Instagram.');
+              return true; // Indicate success
+           } else {
+              print('Instagram API indicated failure: ${response.body}');
+              ScaffoldMessenger.of(context).showSnackBar(
+                 SnackBar(content: Text("Instagram API Error: ${responseData['message'] ?? 'Unknown error'}")),
+              );
+              return false;
+           }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    "Failed to remove follower on Instagram. Status: ${response.statusCode}")),
+          );
+          return false; // Indicate failure
+        }
+    } catch (e) {
+       print("Error calling Instagram remove follower API: $e");
+       if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text("Network error during follower removal: $e")),
+           );
+       }
+       return false;
     }
   }
 
-  Future<Map<String, dynamic>> _removeFollower(String id) async {
-    String url = "${AppConfig.baseUrl}api/remove-follower/";
+  // --- Backend API Call ---
+  // Remove the user from your backend's 'followers' list
+  Future<bool> _removeFollowerFromBackend(String id) async {
+    String url = "${AppConfig.baseUrl}api/remove-follower/"; // Ensure endpoint matches backend
     String? token = await _secureStorage.read(key: 'access_token');
+    if (token == null) {
+       if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Authentication error. Please log in again.')),
+          );
+       }
+       return false;
+    }
+
     try {
       final response = await http.post(
         Uri.parse(url),
@@ -153,95 +222,148 @@ class _NotFollowedButFollowingMeScreenState
           "Content-Type": "application/json",
         },
         body: jsonEncode({
-          "id": id, // Send the id in the request body
+          "id": id, // Send the user ID to remove from backend follower list
         }),
       );
 
-      print(response.body);
+      print('Backend Remove Follower Response Status: ${response.statusCode}');
+      print('Backend Remove Follower Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
+      if (!mounted) return false;
+
+      if (response.statusCode == 200 || response.statusCode == 204) { // 204 No Content is also success
+        print('Successfully removed follower $id from backend.');
+        return true;
       } else {
-        return {
-          "error": "Failed to remove following: ${response.statusCode}",
-          "details": response.body
-        };
+        String errorMsg = "Failed to remove follower from backend. Status: ${response.statusCode}";
+        try {
+           final errorData = json.decode(response.body);
+           errorMsg += ": ${errorData['detail'] ?? errorData['error'] ?? response.body}";
+        } catch (_) {
+           errorMsg += ". Could not parse error details.";
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
+        return false;
       }
     } catch (e) {
-      return {"error": "Exception occurred", "details": e.toString()};
+      print("Error calling backend remove-follower API: $e");
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text("Network error removing follower: $e")),
+         );
+      }
+      return false;
     }
   }
 
-  Future<Future<Object?>> _showRemoveConfirmationDialog(
-      String userId, String username) async {
-    // return showGeneralDialog<void>
-    return showGeneralDialog(
+  // --- Combined Action Handler ---
+  // Handles removing the follower from Instagram and then the backend
+  Future<void> _handleRemoveFollower(String userId, String username) async {
+     // 1. Try removing follower on Instagram
+     bool instagramSuccess = await _removeFollowerOnInstagram(userId);
+
+     if (!mounted) return; // Check mount status
+
+     if (instagramSuccess) {
+        // 2. If Instagram removal succeeded, try removing from backend
+        bool backendSuccess = await _removeFollowerFromBackend(userId);
+
+        if (backendSuccess) {
+           // 3. If both succeeded, update UI and show success message
+           setState(() {
+             _users.removeWhere((user) => user.id == userId);
+           });
+           _showSuccessOverlay(); // Show custom success overlay
+        } else {
+           // Backend removal failed, inform user
+           ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Removed on Instagram, but failed to update our records. Please try refreshing.')),
+           );
+           // Optionally refetch list here: _refreshUsers();
+        }
+     } else {
+        // Instagram removal failed, error already shown by _removeFollowerOnInstagram
+     }
+  }
+
+
+  // --- UI Methods ---
+
+  // Refreshes the user list from scratch
+  Future<void> _refreshUsers() async {
+    setState(() {
+      _users = [];
+      _currentPage = 1;
+      _hasMoreData = true;
+      _isInitialized = false;
+      _isLoading = false;
+    });
+    await _fetchUsers();
+  }
+
+  // Confirmation Dialog for removing a follower
+  Future<Future<Object?>> _showRemoveConfirmationDialog(String userId, String username) async {
+     return showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withOpacity(0.6),
       transitionDuration: Duration(milliseconds: 300),
-      pageBuilder: (context, animation1, animation2) {
-        return Container();
-      },
+      pageBuilder: (context, animation1, animation2) => Container(),
       transitionBuilder: (context, a1, a2, widget) {
-        final curvedValue = Curves.easeInOutBack.transform(a1.value) - 1.0;
-        return Transform(
-          transform: Matrix4.translationValues(0.0, curvedValue * 200, 0.0),
-          child: Opacity(
-            opacity: a1.value,
+        // Use the same scale/fade transition as before
+        final scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+          CurvedAnimation(parent: a1, curve: Curves.easeOutCubic),
+        );
+        final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+           CurvedAnimation(parent: a1, curve: Curves.easeIn),
+        );
+
+        return ScaleTransition(
+          scale: scaleAnimation,
+          child: FadeTransition(
+            opacity: fadeAnimation,
             child: AlertDialog(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16.0)),
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              title: Row(
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person_remove,
-                          color: Colors.redAccent, size: 28), // Keep the icon
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Remove $username?',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  Icon(Icons.person_remove, color: Colors.orange[800], size: 28), // Use orange for removal warning
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Remove $username?',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
               content: Text(
-                'Are you sure you want to remove $username?',
-                style: TextStyle(fontSize: 16),
+                'This will remove $username from your followers list on Instagram and update our records. Are you sure?',
+                style: TextStyle(fontSize: 15, color: Colors.black87),
               ),
+              actionsPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               actions: <Widget>[
                 TextButton(
-                  child:
-                      Text('Cancel', style: TextStyle(color: Colors.blueGrey)),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                  child: Text('Cancel', style: TextStyle(color: Colors.blueGrey, fontSize: 15)),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.orange[900], // Stronger orange/red for confirmation
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   ),
-                  child: Text('Remove', style: TextStyle(color: Colors.white)),
+                  child: Text('Remove', style: TextStyle(fontSize: 15)),
                   onPressed: () async {
-                    // async
-                    Navigator.of(context).pop();
-                    bool removeSuccess =
-                        await _removeUser(userId); // Use await and store
-                    if (removeSuccess) {
-                      // Check the result
-                      await _removeFollower(userId); // Only call if successful
-                    }
+                    Navigator.of(context).pop(); // Close dialog
+                    // Initiate the combined remove follower process
+                    await _handleRemoveFollower(userId, username);
                   },
                 ),
               ],
@@ -254,186 +376,155 @@ class _NotFollowedButFollowingMeScreenState
 
   @override
   void dispose() {
+    _scrollController.removeListener(_scrollListener); // Clean up listener
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      fetchUsers();
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('Not Followed But Following Me'),
+        title: Text('Followers You Don\'t Follow'), // Clearer title
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 1.0,
       ),
-      body: _users.isEmpty && _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: () async {
-                setState(() {
-                  _users = [];
-                  _currentPage = 1;
-                  _hasMoreData = true;
-                  _isInitialized = false;
-                });
-                await fetchUsers();
-              },
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: _users.length + (_hasMoreData ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == _users.length) {
-                    return _isLoading
-                        ? Center(child: CircularProgressIndicator())
-                        : Container();
-                  }
-                  final user = _users[index];
-                  return ListTile(
-                    leading: Stack(
-                      children: [
-                        CircleAvatar(
-                          backgroundImage: NetworkImage(user.profilePicUrl),
-                          radius: 25,
-                        ),
-                        if (user.isVerified)
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  shape: BoxShape.circle, color: Colors.white),
-                              padding: EdgeInsets.all(2),
-                              child: Icon(
-                                Icons.check_circle,
-                                color: Colors.blue,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    title: Text(user.username),
-                    subtitle: Text(user.fullName),
-                    trailing: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          // Add this
-                          borderRadius:
-                              BorderRadius.circular(8.0), // Customize as needed
-                        ),
-                      ),
-                      onPressed: () {
-                        _showRemoveConfirmationDialog(user.id,
-                            user.username); // Updated confirmation dialog
-                      },
-                      child: Text('Remove'),
-                    ),
-                  );
-                },
-              ),
-            ),
+      body: RefreshIndicator(
+        onRefresh: _refreshUsers,
+        child: _buildBody(), // Delegate body building
+      ),
     );
   }
 
+  // Helper method to build the main body content
+  Widget _buildBody() {
+    // Initial loading state
+    if (!_isInitialized && _isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    // Empty state
+    if (_isInitialized && _users.isEmpty && !_isLoading) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            'No users found who follow you but you don\'t follow back.\nPull down to refresh.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          ),
+        ),
+      );
+    }
+
+    // List view with Scrollbar
+    return Scrollbar( // ***** WRAP WITH SCROLLBAR *****
+      controller: _scrollController, // ** Link the controller **
+      thumbVisibility: true, // ** Make scrollbar always visible **
+      thickness: 8.0,
+      radius: Radius.circular(4.0),
+      child: ListView.builder(
+        controller: _scrollController, // ** Keep controller here too **
+        physics: AlwaysScrollableScrollPhysics(), // For RefreshIndicator
+        itemCount: _users.length + (_hasMoreData ? 1 : 0), // +1 for loading indicator
+        itemBuilder: (context, index) {
+          // Loading indicator at the bottom
+          if (index == _users.length) {
+            return (_isLoading && _hasMoreData)
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : SizedBox.shrink();
+          }
+
+          // Display user item
+          final user = _users[index];
+          return Card(
+            margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+            elevation: 1.5,
+            child: ListTile(
+              contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              leading: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(user.profilePicUrl),
+                    radius: 25,
+                    backgroundColor: Colors.grey[200],
+                  ),
+                  if (user.isVerified)
+                    Container(
+                      padding: EdgeInsets.all(1),
+                      decoration: BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.check_circle, color: Colors.blue, size: 16),
+                    ),
+                ],
+              ),
+              title: Text(
+                user.username,
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: Text(
+                user.fullName,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              trailing: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[800], // Orange for 'Remove' action
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  elevation: 1.0,
+                ),
+                onPressed: () {
+                  _showRemoveConfirmationDialog(user.id, user.username);
+                },
+                child: Text('Remove'), // Button text clearly indicates action
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
+  // Show the custom success overlay message
   void _showSuccessOverlay() {
-    late OverlayEntry overlayEntry;
+     OverlayEntry? overlayEntry; // Make nullable
 
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 50.0,
-        left: 20,
-        right: 20,
-        child: Material(
-          elevation: 8.0,
-          borderRadius: BorderRadius.circular(10),
-          child: SuccessMessageOverlay(
-            onClose: () {
-              overlayEntry.remove();
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(overlayEntry);
-  }
-}
-
-//SuccessMessageOverlay should be outside NotFollowedButFollowingMeScreen class
-class SuccessMessageOverlay extends StatefulWidget {
-  final VoidCallback onClose;
-
-  SuccessMessageOverlay({required this.onClose});
-
-  @override
-  _SuccessMessageOverlayState createState() => _SuccessMessageOverlayState();
-}
-
-class _SuccessMessageOverlayState extends State<SuccessMessageOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 500),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
-    _controller.forward();
-
-    _timer = Timer(Duration(seconds: 3), () {
-      _controller.reverse().then((_) {
-        widget.onClose();
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.green[600],
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 24),
-            SizedBox(width: 12),
-            Text(
-              "User removed successfully!", // Corrected message
-              style: TextStyle(color: Colors.white, fontSize: 16),
+        bottom: MediaQuery.of(context).viewInsets.bottom + 60.0,
+        left: 0,
+        right: 0,
+        child: Align(
+            alignment: Alignment.center,
+            child: Material(
+              color: Colors.transparent,
+              child: SuccessMessageOverlay( // Use the updated overlay widget
+                message: "User removed successfully!", // Pass specific message
+                onClose: () {
+                  overlayEntry?.remove();
+                  overlayEntry = null;
+                },
+              ),
             ),
-          ],
         ),
       ),
     );
+
+    Overlay.of(context).insert(overlayEntry!);
   }
 }
 
+// --- User Data Model --- (Same as before)
 class User {
   final String id;
   final String username;
@@ -451,11 +542,108 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      username: json['username'],
-      fullName: json['full_name'],
-      isVerified: json['is_verified'],
-      profilePicUrl: json['profile_pic_url'],
+      id: json['id']?.toString() ?? '',
+      username: json['username'] ?? 'Unknown',
+      fullName: json['full_name'] ?? '',
+      isVerified: json['is_verified'] ?? false,
+      profilePicUrl: json['profile_pic_url'] ?? '',
+    );
+  }
+}
+
+
+// --- Custom Success Message Overlay Widget ---
+// Updated to accept a message parameter
+class SuccessMessageOverlay extends StatefulWidget {
+  final VoidCallback onClose;
+  final String message; // Added message parameter
+
+  SuccessMessageOverlay({
+      required this.onClose,
+      required this.message, // Make message required
+  });
+
+  @override
+  _SuccessMessageOverlayState createState() => _SuccessMessageOverlayState();
+}
+
+class _SuccessMessageOverlayState extends State<SuccessMessageOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 400),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    _slideAnimation = Tween<Offset>(begin: Offset(0.0, 0.5), end: Offset.zero).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)
+    );
+
+    _controller.forward();
+
+    _timer = Timer(Duration(seconds: 3), () {
+      if (mounted) {
+         _controller.reverse().then((_) {
+           if (mounted) {
+              widget.onClose();
+           }
+         });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.green[700],
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                )
+            ]
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 24),
+              SizedBox(width: 12),
+              Text(
+                widget.message, // Use the passed message
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
