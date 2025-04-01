@@ -87,6 +87,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
       });
     }
   }
+
   void _selectUser(Map<String, dynamic> user) async {
     // Check for private account *before* setting _isLoading
     bool isPrivate = user['is_private'] ?? false;
@@ -103,7 +104,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
       _isLoading = true;
       _errorMessage = null;
       _isDataLoaded = false;
-       _searchResults = []; // and only in that case i clear it 
+      _searchResults = []; // and only in that case i clear it
     });
 
     String? user1Id = await _secureStorage.read(key: 'user1_id');
@@ -174,7 +175,8 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     }
   }
 
-    List<Map<String, dynamic>> _extractUsers(Map<String, dynamic> data, String edgeKey) {
+  List<Map<String, dynamic>> _extractUsers(
+      Map<String, dynamic> data, String edgeKey) {
     List<Map<String, dynamic>> users = [];
     if (data.containsKey('data') &&
         data['data'].containsKey('user') &&
@@ -193,7 +195,6 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     }
     return users;
   }
-
 
   void _showPrivateAccountDialog(String username) {
     showDialog(
@@ -383,8 +384,8 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
                 )
               : const CircleAvatar(
                   radius: 24, child: Icon(Icons.person, size: 28)),
-          title:
-              Text(username, style: const TextStyle(fontWeight: FontWeight.w500)),
+          title: Text(username,
+              style: const TextStyle(fontWeight: FontWeight.w500)),
           subtitle: Text('$fullName ${isPrivate ? '(Private)' : ''}',
               style: TextStyle(color: Colors.grey[600])),
         );
