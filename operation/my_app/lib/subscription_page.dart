@@ -188,7 +188,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   }
 
   Future<ActiveSubscription?> _fetchSubscription(Map<String, String> headers) async {
-    final url = Uri.parse("${AppConfig.baseUrl}payment/subscription/active/");
+    final url = Uri.parse("${AppConfig.baseUrl}/subscription/active/");
     try {
       final response = await http.get(url, headers: headers);
       if (!mounted) return null;
@@ -481,8 +481,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
   Future<bool> _performUpgrade(SubscriptionPlan targetPlan, String token) async {
     String endpointPath;
-    if (targetPlan == SubscriptionPlan.premium) { endpointPath = "payment/subscription/upgrade-to-premium/"; }
-    else if (targetPlan == SubscriptionPlan.vip) { endpointPath = "payment/subscription/upgrade-to-vip/"; }
+    if (targetPlan == SubscriptionPlan.premium) { endpointPath = "subscription/upgrade-to-premium/"; }
+    else if (targetPlan == SubscriptionPlan.vip) { endpointPath = "subscription/upgrade-to-vip/"; }
     else { throw Exception("Invalid target plan for upgrade."); }
     final url = Uri.parse(AppConfig.baseUrl + endpointPath);
     final headers = { "Authorization": "Bearer $token", "Content-Type": "application/json" };
