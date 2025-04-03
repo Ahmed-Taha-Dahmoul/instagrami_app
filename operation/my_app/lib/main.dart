@@ -8,7 +8,7 @@ import 'welcome_page.dart';
 import 'home.dart';
 import 'bottom_nav_bar.dart';
 import 'profile_page.dart';
-import 'settings_page.dart';
+import 'subscription_page.dart';
 import 'app_routes.dart';
 import 'custom_splash_screen.dart'; // Import CustomSplashScreen
 
@@ -167,8 +167,8 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     HomePage(),
+    SubscriptionPage(),
     ProfilePage(),
-    SettingsPage(),
   ];
 
   void _onPageChanged(int index) {

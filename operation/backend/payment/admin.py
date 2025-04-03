@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from .models import Payment, UserCredit, PaymentHistory
 from django.utils.html import format_html
@@ -81,6 +82,32 @@ class PaymentHistoryAdmin(admin.ModelAdmin):
     list_display = ('user', 'payment', 'credits_added', 'timestamp')
     list_filter = ('timestamp', 'user')
     search_fields = ('user__username',)
+
+
+
+
+
+
+from .models import Subscription 
+
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'plan', 'start_date', 'end_date', 'is_active_status')
+    list_filter = ('plan', 'end_date')
+    search_fields = ('user__username', 'plan')
+
+    def is_active_status(self, obj):
+        return obj.is_active()
+    is_active_status.boolean = True
+    is_active_status.short_description = 'Active'
+
+
+
+
+
+
 
 # Register models with the admin site
 admin.site.register(UserCredit, UserCreditAdmin)

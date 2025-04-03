@@ -1,8 +1,11 @@
+from datetime import timedelta
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils.timezone import now
+
 
 class UserCredit(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -19,9 +22,15 @@ class Payment(models.Model):
         ('rejected', 'Rejected'),
     ]
 
+    CREDIT_CHOICES = [
+        (50, '50 Credits'),
+        (10, '10 Credits'),
+    ]
+
     id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    card_number = models.CharField(max_length=255)  # Store the card number as plain text
+    card_number = models.CharField(max_length=50)  
+    credit_amount = models.PositiveIntegerField(choices=CREDIT_CHOICES , null=True)  # Either 50 or 10 credits
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     validated_at = models.DateTimeField(null=True, blank=True)
@@ -33,7 +42,7 @@ class Payment(models.Model):
 class PaymentHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     payment = models.OneToOneField(Payment, on_delete=models.CASCADE)
-    credits_added = models.DecimalField(max_digits=10, decimal_places=2)
+    credits_added = models.DecimalField(max_digits=10, decimal_places=2 , null = True )
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -43,17 +52,67 @@ class PaymentHistory(models.Model):
 # Signal to update user credits when a payment is validated
 @receiver(post_save, sender=Payment)
 def update_user_credit(sender, instance, created, **kwargs):
-    # Only trigger when the payment status is changed to validated
+    """
+    Automatically update user credits and payment history when a payment is validated.
+    """
     if instance.status == 'validated':
         # Ensure that the user exists in the UserCredit model
-        user_credit, created = UserCredit.objects.get_or_create(user=instance.user)
-        # Add 50 credits
-        user_credit.balance += 50
+        user_credit, _ = UserCredit.objects.get_or_create(user=instance.user)
+
+        # Update user balance based on payment's credit amount
+        user_credit.balance += instance.credit_amount
         user_credit.save()
+
+        # Update validation timestamp
+        if not instance.validated_at:
+            instance.validated_at = now()
+            instance.save()
 
         # Create a payment history record
         PaymentHistory.objects.create(
             user=instance.user,
             payment=instance,
-            credits_added=50
+            credits_added=instance.credit_amount
         )
+
+
+
+
+
+
+
+
+
+
+class Subscription(models.Model):
+    PLAN_CHOICES = [
+        ('trial', 'Trial'),
+        ('premium', 'Premium'),
+        ('vip', 'VIP'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # Allow multiple subscriptions
+    plan = models.CharField(max_length=10, choices=PLAN_CHOICES, default='trial')
+    credits_reduced = models.DecimalField(max_digits=10, decimal_places=2 , null = True )
+    start_date = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField(null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.plan} ({'Active' if self.is_active() else 'Expired'})"
+
+    def is_active(self):
+        """Check if the subscription is still valid."""
+        return self.end_date and self.end_date > now()
+
+    
+
+
+@receiver(post_save, sender=User)
+def create_or_update_subscription(sender, instance, created, **kwargs):
+    """Creates a new subscription with a 3-day trial for the newly created user."""
+    if created:
+        # Set the end_date to 3 days from now
+        end_date = now() + timedelta(days=3)
+        Subscription.objects.create(user=instance, plan='trial', end_date=end_date)
+
+
