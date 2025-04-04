@@ -97,7 +97,8 @@ class ApiService {
       final response = await http.post(Uri.parse(url), headers: headers, body: body);
 
       print("Status Code: ${response.statusCode}");
-
+      print('response body :');
+      print(response.body);
       if (response.statusCode == 200) {
         Map<String, dynamic> userInfo = json.decode(response.body);
         // Extracting required data
