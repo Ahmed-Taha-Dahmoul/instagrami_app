@@ -547,11 +547,8 @@ def save_instagram_user_profile(request):
         
         if not user_data:
             return Response({"error": "No 'user_data' found in the request body"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = user_data.get('user')
-        if not user:
-            return Response({"error": "No user information found"}, status=status.HTTP_400_BAD_REQUEST)
-        print(user)
+        print(user_data)
+        user = user_data
         # Extract relevant fields
         instagram_username = user.get('username', '')
         instagram_full_name = user.get('full_name', '')

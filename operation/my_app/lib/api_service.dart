@@ -58,13 +58,15 @@ class ApiService {
 
 
   //bech tfechi profile mta3 user men instagram w tab3thou lel backend
+  
+
   static Future<bool> getInstagramUserInfoAndSave(
       String userId,
       String csrftoken,
       String sessionId,
       String xIgAppId,
       String token) async {
-    String url = "https://www.instagram.com/api/v1/users/$userId/info/";
+    String url = "https://www.instagram.com/graphql/query";
     print("Request URL: $url");
 
     try {
@@ -72,56 +74,87 @@ class ApiService {
 
       final headers = {
         "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
-        "referer": "https://www.instagram.com/api/v1/users/$userId/info/",
+        "referer": "https://www.instagram.com/$userId/",
         "x-csrftoken": csrftoken,
         "x-ig-app-id": xIgAppId,
+        "content-type": "application/x-www-form-urlencoded",
         "user-agent": userAgent,
       };
-      
 
-      print("Sending request to Instagram...");
-      final response = await http.get(Uri.parse(url), headers: headers);
+      // GraphQL query variables
+      final variables = {
+        "id": userId,
+        "render_surface": "PROFILE"
+      };
+
+      final body = {
+        "fb_api_req_friendly_name": "PolarisProfilePageContentQuery",
+        "doc_id": "9707764636006837",
+        "variables": jsonEncode(variables)
+      };
+
+      print("Sending request to Instagram GraphQL...");
+      final response = await http.post(Uri.parse(url), headers: headers, body: body);
 
       print("Status Code: ${response.statusCode}");
-      
 
       if (response.statusCode == 200) {
         Map<String, dynamic> userInfo = json.decode(response.body);
-        // Check if follower_count and following_count exist
-        if (userInfo.containsKey('user') &&
-          userInfo['user'].containsKey('follower_count') &&
-          userInfo['user'].containsKey('following_count')) {
-          // Sending the fetched data to the API endpoint
-          String saveUrl = "${AppConfig.baseUrl}api/save-user-instagram-profile/";  // Use your base URL
+        // Extracting required data
+        var user = userInfo['data']['user'];
+        if (user != null &&
+            user.containsKey('follower_count') &&
+            user.containsKey('following_count')) {
+            print("find user not null ");
+          int followerCount = user['follower_count'];
+          int followingCount = user['following_count'];
+
+          print("Followers: $followerCount, Following: $followingCount");
+
+          // Prepare data to save
+          final userData = {
+            "username": user['username'],
+            "full_name": user['full_name'],
+            "profile_pic_url": user['profile_pic_url'],
+            "media_count" : user['media_count'],
+            "biography" : user['biography'],
+            "follower_count": followerCount,
+            "following_count": followingCount,
+          };
+
+          // Sending fetched data to your API
+          String saveUrl = "${AppConfig.baseUrl}api/save-user-instagram-profile/";
           final saveResponse = await http.post(
             Uri.parse(saveUrl),
             headers: {
               "Authorization": "Bearer $token",
               "Content-Type": "application/json",
             },
-            body: jsonEncode({"user_data": userInfo}),
+            body: jsonEncode({"user_data": userData}),
           );
 
           if (saveResponse.statusCode == 200) {
-            print("User data saved successfully.");
-            return true; // Successfully saved the user data
+            print("✅ User data saved successfully.");
+            return true;
           } else {
-            print("Failed to save user data: ${saveResponse.statusCode}");
-            return false; // Failed to save user data
+            print("❌ Failed to save user data: ${saveResponse.statusCode}");
+            return false;
           }
         } else {
-          print("Missing follower_count or following_count in response.");
-          return false; // Required fields are missing
+          print("❌ Missing follower_count or following_count in response.");
+          return false;
         }
       } else {
-        print("Failed to fetch data: ${response.statusCode}");
-        return false; // Failed to fetch user info
+        print("❌ Failed to fetch data: ${response.statusCode}");
+        return false;
       }
     } catch (e) {
-      print("Exception occurred: $e");
-      return false; // Exception occurred
+      print("⚠️ Exception occurred: $e");
+      return false;
     }
   }
+
+
 
 
   //hedhi bech tjib user profile mel backend
