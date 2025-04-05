@@ -33,6 +33,7 @@ def get_all_subscriptions(request):
     if subscriptions:
         data = [{
             "plan": subscription.plan,
+            "credits_reduced" : subscription.credits_reduced,
             "start_date": subscription.start_date,
             "end_date": subscription.end_date,
             "status": "Active" if subscription.end_date > now() else "Expired"

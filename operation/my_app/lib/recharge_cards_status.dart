@@ -9,8 +9,8 @@ import 'config.dart';
 // --- Data Models (Included directly for completeness) ---
 class PaymentInfo {
   final String paymentId;
-  final String status; // e.g., 'validated', 'pending', 'rejected'
-  final String cardNumber; // Raw card number from API
+  final String status; 
+  final String cardNumber; 
   final DateTime createdAt;
   final DateTime? validatedAt;
 

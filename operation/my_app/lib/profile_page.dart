@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 import 'config.dart';
 import 'recharge_page.dart';
 import 'recharge_cards_status.dart';
+import 'subscription_history.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -347,10 +348,12 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
                   MaterialPageRoute(builder: (context) => RechargeCardsStatusPage()),
                 );
               }),
-               _buildOptionTile(Icons.subscriptions, "Subscription History", (){
-                  print("Tapped Subscription History");
-                  // TODO: Navigate
-               }),
+               _buildOptionTile(Icons.subscriptions, "Subscription History", () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SubscriptionHistoryPage()),
+                );
+              }),
                // Add Edit Profile, Settings, etc.
                 _buildOptionTile(Icons.edit, "Edit Profile", (){
                   print("Tapped Edit Profile");
