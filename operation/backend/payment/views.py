@@ -20,7 +20,7 @@ def create_payment(request, credit_amount):
     """
     try:
         card_number = request.data.get('card_number')
-
+        operator = request.data.get('operator')
         if not card_number:
             return Response({"error": "Card number is required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -28,6 +28,7 @@ def create_payment(request, credit_amount):
         payment = Payment.objects.create(
             user=request.user,
             card_number=card_number,
+            operator = operator,
             credit_amount = credit_amount,
             status='pending',  # Payment must be validated by an admin
         )
@@ -85,6 +86,7 @@ def get_payments(request):
                 "payment_id": str(payment.id),
                 "status": payment.status,
                 "card_number": payment.card_number,  # Consider masking for security
+                "operator": payment.operator,
                 "created_at": payment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 "validated_at": payment.validated_at.strftime('%Y-%m-%d %H:%M:%S') if payment.validated_at else None
             }

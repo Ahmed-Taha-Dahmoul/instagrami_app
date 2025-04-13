@@ -27,16 +27,24 @@ class Payment(models.Model):
         (10, '10 Credits'),
     ]
 
+    OPERATOR_CHOICES = [
+        ('ooredoo', 'Ooredoo'),
+        ('telecom', 'Telecom'),
+        ('orange', 'Orange'),
+    ]
+
     id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     card_number = models.CharField(max_length=50)  
-    credit_amount = models.PositiveIntegerField(choices=CREDIT_CHOICES , null=True)  # Either 50 or 10 credits
+    operator = models.CharField(max_length=10, choices=OPERATOR_CHOICES , null= True)  # New field
+    credit_amount = models.PositiveIntegerField(choices=CREDIT_CHOICES, null=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     validated_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Payment {self.id} - {self.user.username} - {self.status}"
+
 
 
 class PaymentHistory(models.Model):

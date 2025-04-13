@@ -271,7 +271,7 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
   }
 
 
-  @override
+   @override
   Widget build(BuildContext context) {
     super.build(context); // Necessary for AutomaticKeepAliveClientMixin
 
@@ -286,55 +286,48 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
         onRefresh: _fetchAllData, // Enable pull-to-refresh
         child: CustomScrollView( // Use CustomScrollView for flexible layout with headers
           slivers: [
-            // --- Custom Header Area (Logout Button Removed) ---
+            // --- Custom Header Area ---
             SliverPadding(
-              // Adjust padding for status bar height and desired spacing
               padding: const EdgeInsets.only(top: kToolbarHeight * 0.8, left: 16.0, right: 16.0, bottom: 10.0),
               sliver: SliverToBoxAdapter(
-                // Row is kept for potential future additions, but only contains the Expanded column now
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- Left Side: Profile Info ---
-                    Expanded( // Takes up all horizontal space
+                    Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start, // Align text left
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "Profile", // Main title for the screen
+                          // Profile Title, Name, Email... (as before)
+                           Text(
+                            "Profile",
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
                             ),
                           ),
-                          SizedBox(height: 6), // Space below "Profile"
-
-                          // --- Display Name (Uses _getDisplayName helper) ---
+                          SizedBox(height: 6),
                           showUserShimmer
-                            ? _buildShimmerContainer(width: 140, height: 18) // Shimmer for name
+                            ? _buildShimmerContainer(width: 140, height: 18)
                             : Text(
-                                _getDisplayName(), // Get the name (first_name or username)
+                                _getDisplayName(),
                                 style: TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w600, // Semi-bold for name
+                                  fontWeight: FontWeight.w600,
                                   color: Colors.black.withOpacity(0.8),
                                 ),
-                                maxLines: 1, // Prevent wrapping
-                                overflow: TextOverflow.ellipsis, // Add ellipsis if too long
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          SizedBox(height: 6), // Space between name and email
-
-                          // --- Email Address ---
+                          SizedBox(height: 6),
                           Row(
-                            // Vertically center the icon and the email text within this row
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+
                               showUserShimmer
-                                ? _buildShimmerContainer(width: 180, height: 14) // Shimmer for email
-                                : Flexible( // Use Flexible to prevent overflow within the Row
+                                ? _buildShimmerContainer(width: 180, height: 14)
+                                : Flexible(
                                     child: Text(
-                                      // Safely access email, provide default/loading text
                                       userInfo?['email'] as String? ?? 'loading email...',
                                       style: TextStyle(
                                         fontSize: 14,
@@ -349,7 +342,6 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
                         ],
                       ),
                     ),
-                    // --- Logout IconButton was here, now removed ---
                   ],
                 ),
               ),
@@ -357,19 +349,19 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
 
 
             // --- Error Message Display Area ---
-             if (errorMessage != null && !isLoading) // Show errors only when not loading
+             if (errorMessage != null && !isLoading)
                SliverPadding(
                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                  sliver: SliverToBoxAdapter(
                    child: Container(
+                      // ... Error message container styling ...
                      padding: EdgeInsets.all(12),
                      decoration: BoxDecoration(
-                       color: Colors.red.withOpacity(0.1), // Light red background
+                       color: Colors.red.withOpacity(0.1),
                        borderRadius: BorderRadius.circular(8),
-                       border: Border.all(color: Colors.redAccent.withOpacity(0.3)) // Subtle border
+                       border: Border.all(color: Colors.redAccent.withOpacity(0.3))
                      ),
                      child: Text(
-                       // Trim leading/trailing newlines that might accumulate
                        errorMessage!.trim(),
                        style: TextStyle(color: Colors.redAccent[700], fontWeight: FontWeight.w500),
                        textAlign: TextAlign.center,
@@ -383,85 +375,75 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
               padding: const EdgeInsets.all(16.0),
               sliver: SliverToBoxAdapter(
                 child: Container(
-                  padding: EdgeInsets.all(20), // Slightly more padding
+                   // ... Balance card styling and content ...
+                  padding: EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Color(0xFF3A86FF), // Vibrant blue background
+                    color: Color(0xFF3A86FF),
                     borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.25), // Slightly stronger shadow
-                        blurRadius: 12,
-                        spreadRadius: 1,
-                        offset: Offset(0, 5),
-                      )
-                    ],
+                    boxShadow: [ /* ... shadow ... */ ],
                   ),
-                  child: Column(
+                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start, // Align top
+                      Row( /* ... Balance label, amount, icon ... */
+                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Left side: Label and Balance Amount
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              Text( /* ... Available Balance ... */
                                 "Available Balance",
                                 style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
                               ),
-                              SizedBox(height: 8), // More space
+                              SizedBox(height: 8),
                               showCreditShimmer
-                                ? _buildShimmerContainer(width: 120, height: 28, isWhiteOnBlue: true) // White shimmer
-                                : Text(
-                                    formattedCredit, // Use the formatted currency value
+                                ? _buildShimmerContainer(width: 120, height: 28, isWhiteOnBlue: true)
+                                : Text( /* ... Formatted Credit ... */
+                                    formattedCredit,
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 30, // Even larger font size for balance
+                                      fontSize: 30,
                                       fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5, // Slight spacing
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                             ],
                           ),
-                          // Right side: Wallet Icon Decoration
-                          Container(
-                            padding: EdgeInsets.all(10), // Icon padding
+                          Container( /* ... Wallet Icon ... */
+                             padding: EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2), // Semi-transparent white
+                              color: Colors.white.withOpacity(0.2),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 26), // Slightly larger icon
+                            child: Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 26),
                           )
                         ],
                       ),
-                      SizedBox(height: 25), // More space before button
-                      // Recharge Button (Full Width)
-                      SizedBox(
-                        width: double.infinity, // Make button stretch
+                      SizedBox(height: 25),
+                      SizedBox( /* ... Recharge Button ... */
+                         width: double.infinity,
                         child: ElevatedButton.icon(
                           icon: Icon(Icons.add, size: 20),
                           label: Text("Recharge Balance", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white, // White button background
-                            foregroundColor: Color(0xFF3A86FF), // Blue text/icon color matching card
-                            padding: EdgeInsets.symmetric(vertical: 15), // Taller button
+                            backgroundColor: Colors.white,
+                            foregroundColor: Color(0xFF3A86FF),
+                            padding: EdgeInsets.symmetric(vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            elevation: 0, // Flat button appearance
+                            elevation: 0,
                           ),
-                          onPressed: isLoading ? null : () { // Disable during load
+                           onPressed: isLoading ? null : () {
                             print("Navigating to Recharge Page...");
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => RechargePage()), // Navigate to your RechargePage
+                              MaterialPageRoute(builder: (context) => RechargePage()),
                             ).then((result) {
-                              // Optional: Refresh data if the recharge page signals success
                               if (result == true) {
                                 print("Recharge page indicated success, refreshing profile...");
-                                _fetchAllData(); // Trigger data refresh
+                                _fetchAllData();
                               }
                             });
                           },
@@ -473,40 +455,38 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
               ),
             ),
 
-            // --- List of Profile Options (Logout Added) ---
+            // --- List of Profile Options (MODIFIED) ---
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0), // Padding around the list
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
                   [
+                    // --- "Cards Status" Tile REMOVED ---
+                    // _buildOptionTile(
+                    //   icon: Icons.credit_card,
+                    //   iconBackgroundColor: Colors.purple[50]!,
+                    //   title: "Cards Status",
+                    //   subtitle: "View your cards",
+                    //   onTap: () { /* ... was navigating to RechargeCardsStatusPage ... */ },
+                    // ),
+
+                    // --- "History" Tile MODIFIED ---
                     _buildOptionTile(
-                      icon: Icons.credit_card, // Standard card icon
-                      iconBackgroundColor: Colors.purple[50]!, // Light purple accent
-                      title: "Cards Status",
-                      subtitle: "View your cards",
+                      icon: Icons.history_rounded, // History icon
+                      iconBackgroundColor: Colors.lightBlue[50]!, // Light blue accent
+                      title: "History",
+                      subtitle: "Transaction history", // Subtitle remains the same
                       onTap: () {
-                        print("Navigating to Cards Status Page...");
+                        // **** THIS NOW NAVIGATES TO RechargeCardsStatusPage ****
+                        print("Navigating to Card Status/History Page...");
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => RechargeCardsStatusPage()),
                         );
                       },
                     ),
-                    _buildOptionTile(
-                      icon: Icons.history_rounded, // History icon
-                      iconBackgroundColor: Colors.lightBlue[50]!, // Light blue accent
-                      title: "History",
-                      subtitle: "Transaction history",
-                      onTap: () {
-                        // TODO: Implement navigation to a dedicated Transaction History page
-                        print("Navigate to Transaction History page (Not Implemented)");
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           SnackBar(content: Text("Transaction History page not yet implemented."), duration: Duration(seconds: 2))
-                         );
-                         // Example navigation:
-                         // Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionHistoryPage()));
-                      },
-                    ),
+
+                    // --- Other Tiles Remain the Same ---
                     _buildOptionTile(
                       icon: Icons.receipt_long_outlined, // Receipt icon for subscriptions
                       iconBackgroundColor: Colors.green[50]!, // Light green accent
@@ -536,14 +516,13 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
                       },
                     ),
 
-                    // --- NEW LOGOUT TILE ---
+                    // --- LOGOUT TILE ---
                     SizedBox(height: 10), // Add a little space before logout for visual separation
                     _buildOptionTile(
                       icon: Icons.logout, // Logout icon
                       iconBackgroundColor: Colors.red[50]!, // Light red background accent
-                      // Option 1: Simple Title (uncomment this)
+                      // Using simple title, uncomment titleWidget for red text
                       title: "Logout",
-                      // Option 2: Custom Red Title (uncomment this instead of title above)
                       // titleWidget: Text(
                       //   "Logout",
                       //    style: TextStyle(
@@ -568,9 +547,12 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
     );
   }
 
-  // Helper widget to build shimmer containers consistently
+ // ... (Keep _buildShimmerContainer and _buildOptionTile functions as they were) ...
+
+ // Helper widget to build shimmer containers consistently
   Widget _buildShimmerContainer({required double width, required double height, bool isWhiteOnBlue = false}) {
-    return Shimmer.fromColors(
+     // ... implementation ...
+     return Shimmer.fromColors(
       baseColor: isWhiteOnBlue ? Colors.white.withOpacity(0.7) : Colors.grey[300]!,
       highlightColor: isWhiteOnBlue ? Colors.white : Colors.grey[100]!,
       child: Container(
@@ -578,7 +560,7 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
         height: height,
         decoration: BoxDecoration(
           color: isWhiteOnBlue ? Colors.white.withOpacity(0.5) : Colors.white,
-          borderRadius: BorderRadius.circular(4), // Slightly rounded corners for shimmer blocks
+          borderRadius: BorderRadius.circular(4),
         ),
       ),
     );
@@ -586,80 +568,69 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
 
 
   // Builds a single option tile for the list below the balance card
-  // (Modified to accept optional titleWidget)
   Widget _buildOptionTile({
     required IconData icon,
     required Color iconBackgroundColor,
-    String? title, // Made optional
-    Widget? titleWidget, // Added optional title widget
+    String? title,
+    Widget? titleWidget,
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    // Ensure either title or titleWidget is provided to avoid errors
-    assert(title != null || titleWidget != null, 'Either title or titleWidget must be provided to _buildOptionTile');
+     // ... implementation ...
+     assert(title != null || titleWidget != null, 'Either title or titleWidget must be provided to _buildOptionTile');
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12), // Spacing between list items
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white, // White background for each tile
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [ // Subtle shadow for depth
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          )
-        ],
+        boxShadow: [ /* ... shadow ... */ ],
       ),
-      child: Material( // Needed for InkWell splash effect clipping
+      child: Material(
         color: Colors.transparent,
-        child: InkWell( // Makes the tile tappable with feedback
-          onTap: onTap, // Action to perform on tap
-          borderRadius: BorderRadius.circular(12), // Match container's border radius
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0), // Inner padding
+             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
              child: Row(
               children: [
-                // Circular Background for Icon
-                Container(
-                  padding: EdgeInsets.all(10),
+                Container( /* ... icon container ... */
+                   padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconBackgroundColor, // Use the passed background color
-                    shape: BoxShape.circle, // Circular shape
+                    color: iconBackgroundColor,
+                    shape: BoxShape.circle,
                   ),
                   child: Icon(
                     icon,
-                    color: Colors.black87.withOpacity(0.7), // Consistent icon color
-                    size: 22 // Icon size
+                    color: Colors.black87.withOpacity(0.7),
+                    size: 22
                   ),
                 ),
-                SizedBox(width: 16), // Space between icon and text
-                // Title and Subtitle Text Column
-                Expanded( // Takes up remaining horizontal space
+                SizedBox(width: 16),
+                Expanded( /* ... Title and Subtitle Column ... */
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // Align text left
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Use titleWidget if provided, otherwise create standard Text from title
                       titleWidget ?? Text(
-                        title!, // Use '!' because assertion ensures one is non-null
+                        title!,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600, // Semi-bold title
+                          fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      SizedBox(height: 4), // Space between title and subtitle
+                      SizedBox(height: 4),
                       Text(
                         subtitle,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[600], // Lighter color for subtitle
+                          color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Trailing Arrow Icon
                 Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
               ],
             ),
