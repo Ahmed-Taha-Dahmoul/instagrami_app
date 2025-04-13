@@ -13,7 +13,7 @@ import 'recharge_cards_status.dart'; // Assuming you have this
 import 'subscription_history.dart'; // Assuming you have this
 // Add imports for EditProfilePage and WelcomePage if they exist and are used
 // import 'edit_profile_page.dart';
-// import 'welcome_page.dart'; // Make sure '/welcome' route points here
+// Make sure '/welcome' route points here in your MaterialApp
 // -------------------------------------------
 
 class ProfilePage extends StatefulWidget {
@@ -238,7 +238,7 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text("Cancel")),
           TextButton(
              onPressed: () => Navigator.of(context).pop(true),
-             child: Text("Logout", style: TextStyle(color: Colors.red)) // Style logout button
+             child: Text("Logout", style: TextStyle(color: const Color.fromARGB(255, 255, 50, 35))) // Style logout button
           ),
         ],
       ),
@@ -286,19 +286,19 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
         onRefresh: _fetchAllData, // Enable pull-to-refresh
         child: CustomScrollView( // Use CustomScrollView for flexible layout with headers
           slivers: [
-            // --- Custom Header Area (Alignment Adjusted) ---
+            // --- Custom Header Area (Logout Button Removed) ---
             SliverPadding(
               // Adjust padding for status bar height and desired spacing
               padding: const EdgeInsets.only(top: kToolbarHeight * 0.8, left: 16.0, right: 16.0, bottom: 10.0),
               sliver: SliverToBoxAdapter(
+                // Row is kept for potential future additions, but only contains the Expanded column now
                 child: Row(
-                  // Align the top of the left column with the top of the logout button
-                  crossAxisAlignment: CrossAxisAlignment.start, // *** CHANGED TO .start ***
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // --- Left Side: Profile Info ---
-                    Expanded( // Allow this column to take available space and prevent overflow
+                    Expanded( // Takes up all horizontal space
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start, // Keep this as start (aligns text left)
+                        crossAxisAlignment: CrossAxisAlignment.start, // Align text left
                         children: [
                           Text(
                             "Profile", // Main title for the screen
@@ -328,18 +328,28 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
                           // --- Email Address ---
                           Row(
                             // Vertically center the icon and the email text within this row
-                            crossAxisAlignment: CrossAxisAlignment.center, // *** ENSURED .center HERE ***
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              showUserShimmer
+                                ? _buildShimmerContainer(width: 180, height: 14) // Shimmer for email
+                                : Flexible( // Use Flexible to prevent overflow within the Row
+                                    child: Text(
+                                      // Safely access email, provide default/loading text
+                                      userInfo?['email'] as String? ?? 'loading email...',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    // --- Right Side: Logout Button ---
-                    // No padding needed here usually, as CrossAxisAlignment.start on the Row handles the alignment
-                    IconButton(
-                      icon: Icon(Icons.logout, color: Colors.redAccent),
-                      onPressed: isLoading ? null : _handleLogout, // Disable button during loading
-                      tooltip: "Logout", // Accessibility feature
-                    ),
+                    // --- Logout IconButton was here, now removed ---
                   ],
                 ),
               ),
@@ -463,7 +473,7 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
               ),
             ),
 
-            // --- List of Profile Options ---
+            // --- List of Profile Options (Logout Added) ---
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0), // Padding around the list
               sliver: SliverList(
@@ -525,7 +535,29 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
                          // Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfilePage()));
                       },
                     ),
-                     SizedBox(height: 20), // Add some breathing room at the bottom
+
+                    // --- NEW LOGOUT TILE ---
+                    SizedBox(height: 10), // Add a little space before logout for visual separation
+                    _buildOptionTile(
+                      icon: Icons.logout, // Logout icon
+                      iconBackgroundColor: Colors.red[50]!, // Light red background accent
+                      // Option 1: Simple Title (uncomment this)
+                      title: "Logout",
+                      // Option 2: Custom Red Title (uncomment this instead of title above)
+                      // titleWidget: Text(
+                      //   "Logout",
+                      //    style: TextStyle(
+                      //      fontSize: 16,
+                      //      fontWeight: FontWeight.w600,
+                      //      color: Colors.redAccent, // Red color for title
+                      //    ),
+                      // ),
+                      subtitle: "Sign out of your account", // Descriptive subtitle
+                      onTap: isLoading ? () {} : _handleLogout, // Call the existing logout handler, disable during load
+                    ),
+                    // --- END LOGOUT TILE ---
+
+                    SizedBox(height: 20), // Keep breathing room at the bottom
                   ],
                 ),
               ),
@@ -554,13 +586,18 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
 
 
   // Builds a single option tile for the list below the balance card
+  // (Modified to accept optional titleWidget)
   Widget _buildOptionTile({
     required IconData icon,
     required Color iconBackgroundColor,
-    required String title,
+    String? title, // Made optional
+    Widget? titleWidget, // Added optional title widget
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    // Ensure either title or titleWidget is provided to avoid errors
+    assert(title != null || titleWidget != null, 'Either title or titleWidget must be provided to _buildOptionTile');
+
     return Container(
       margin: EdgeInsets.only(bottom: 12), // Spacing between list items
       decoration: BoxDecoration(
@@ -602,8 +639,9 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, // Align text left
                     children: [
-                      Text(
-                        title,
+                      // Use titleWidget if provided, otherwise create standard Text from title
+                      titleWidget ?? Text(
+                        title!, // Use '!' because assertion ensures one is non-null
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600, // Semi-bold title
