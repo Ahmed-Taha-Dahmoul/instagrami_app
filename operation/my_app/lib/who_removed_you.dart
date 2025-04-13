@@ -1,9 +1,12 @@
-import 'dart:async'; // Added for Timer in SuccessOverlay if needed later
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'config.dart'; // Ensure this import points to your config file
+
+
+
 
 class WhoRemovedYouScreen extends StatefulWidget {
   @override
@@ -13,98 +16,189 @@ class WhoRemovedYouScreen extends StatefulWidget {
 class _WhoRemovedYouScreenState extends State<WhoRemovedYouScreen> {
   final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   List<User> _unfollowedUsers = [];
-  bool _isLoading = true; // Start loading initially
+  bool _isLoading = true; // For initial load or refresh
+  bool _isLoadingMore = false; // For loading subsequent pages
   bool _hasError = false;
-  String _errorMessage = ''; // Store specific error message
+  String _errorMessage = '';
+  String? _nextPageUrl; // URL for the next page of results
+  int _totalUserCount = 0; // Total number of users who unfollowed
 
-  // Add ScrollController even if not used for pagination
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Fetch users when the screen initializes
-    // Using addPostFrameCallback to avoid issues if fetch completes instantly
+    // Add listener to scroll controller for pagination trigger
+    _scrollController.addListener(_scrollListener);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-       if (mounted) {
-          _fetchUnfollowedUsers();
-       }
+      if (mounted) {
+        _fetchUnfollowedUsers(); // Fetch initial data
+      }
     });
   }
 
   @override
   void dispose() {
-    _scrollController.dispose(); // Dispose the controller
+    _scrollController.removeListener(_scrollListener); // Remove listener
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // Fetches the list of users who unfollowed you
+  // Listener to detect when user scrolls near the bottom
+  void _scrollListener() {
+    // Check if near bottom, not already loading more, and there is a next page URL
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.9 && // 90% threshold
+        !_isLoadingMore &&
+        _nextPageUrl != null) {
+       if (mounted) {
+          _loadMoreUsers();
+       }
+    }
+  }
+
+  // Fetches the *first* page of users or refreshes the list
   Future<void> _fetchUnfollowedUsers() async {
-    if (!mounted) return; // Check if widget is still mounted
+    if (!mounted) return;
 
     setState(() {
-      _isLoading = true;
+      _isLoading = true; // Show initial loading indicator
       _hasError = false;
-      _errorMessage = ''; // Clear previous error
+      _errorMessage = '';
+      _unfollowedUsers = []; // Clear existing users on refresh/initial load
+      _nextPageUrl = null; // Reset next page URL
+      _totalUserCount = 0; // Reset total count
     });
 
     try {
       String? token = await _secureStorage.read(key: 'access_token');
       if (token == null) {
-         throw Exception('Access token not found. Please log in again.');
+        throw Exception('Access token not found. Please log in again.');
       }
 
+      // Use the base URL for the initial fetch
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}api/get-who-removed-you/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
         },
-      );
+      ).timeout(Duration(seconds: 20));
 
-      if (!mounted) return; // Check again after await
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // Assuming 'results' is the key containing the list
+
+        // --- Parse Paginated Data ---
         List<dynamic> usersJson = data['results'] ?? [];
+        _nextPageUrl = data['next']; // Get the URL for the next page
+        _totalUserCount = data['count'] ?? data['total_count'] ?? 0; // Use 'count' or 'total_count'
+        // --- End Parse ---
 
         setState(() {
           _unfollowedUsers = usersJson
               .map((userJson) => User.fromJson(userJson))
               .toList();
-          _isLoading = false;
+          _isLoading = false; // Hide initial loading indicator
         });
       } else {
-         // Throw exception with more details
-         throw Exception('Failed to fetch data. Status: ${response.statusCode}, Body: ${response.body}');
+          String errorBody = response.body;
+          try {
+             final errorData = json.decode(response.body);
+             errorBody = errorData['detail'] ?? errorData['error'] ?? response.body;
+          } catch(_) {}
+          throw Exception('Failed to fetch data. Status: ${response.statusCode}, Response: $errorBody');
       }
     } catch (e) {
       print('Error fetching unfollowed users: $e');
       if (mounted) {
-         setState(() {
-           _isLoading = false;
-           _hasError = true;
-           _errorMessage = e.toString(); // Store the error message
-         });
+        setState(() {
+          _isLoading = false; // Hide initial loading indicator even on error
+          _hasError = true;
+          _errorMessage = e is TimeoutException
+              ? 'The request timed out. Please check your connection and try again.'
+              : 'An error occurred: ${e.toString()}';
+        });
       }
     }
-    // No finally block needed for setting isLoading = false here,
-    // as it's handled in both success and error paths within mounted checks.
   }
 
-  // Removes a user from the 'who unfollowed you' list (backend action)
-  Future<void> _removeUserFromList(String userId) async {
+  // Fetches subsequent pages of users
+  Future<void> _loadMoreUsers() async {
+    if (_isLoadingMore || _nextPageUrl == null || !mounted) return;
+
+    setState(() {
+      _isLoadingMore = true; // Show loading indicator at the bottom
+    });
+
+    try {
+      String? token = await _secureStorage.read(key: 'access_token');
+      if (token == null) {
+        throw Exception('Authentication token missing.');
+      }
+
+      final response = await http.get(
+        Uri.parse(_nextPageUrl!), // Use the stored next page URL
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      ).timeout(Duration(seconds: 15));
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        List<dynamic> usersJson = data['results'] ?? [];
+        String? nextPageFromResponse = data['next'];
+
+        setState(() {
+          _unfollowedUsers.addAll(
+            usersJson.map((userJson) => User.fromJson(userJson)).toList()
+          );
+          _nextPageUrl = nextPageFromResponse; // Update the next page URL
+        });
+      } else {
+        print('Failed to load more data. Status: ${response.statusCode}, Body: ${response.body}');
+         ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Could not load more users.'), duration: Duration(seconds: 2)),
+         );
+         setState(() {
+           _nextPageUrl = null; // Stop trying on error
+         });
+      }
+    } catch (e) {
+      print('Error loading more users: $e');
+       if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Error loading more users.'), duration: Duration(seconds: 2)),
+          );
+          setState(() {
+            _nextPageUrl = null; // Stop trying on error
+          });
+       }
+    } finally {
+       if (mounted) {
+          setState(() {
+             _isLoadingMore = false;
+          });
+       }
+    }
+  }
+
+
+  // --- Backend Action: Hide user from this list ---
+  Future<void> _hideUserFromList(String userId) async {
     String url = "${AppConfig.baseUrl}api/remove-removed-you/";
     String? token = await _secureStorage.read(key: 'access_token');
 
     if (token == null) {
       if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text('Authentication error. Please log in again.')),
-          );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Authentication error. Please log in again.')),
+        );
       }
-      return; // Exit early
+      return;
     }
 
     try {
@@ -114,164 +208,189 @@ class _WhoRemovedYouScreenState extends State<WhoRemovedYouScreen> {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        // Ensure backend expects 'user_id' key
         body: jsonEncode({"user_id": userId}),
       );
 
-       if (!mounted) return; // Check after await
+      if (!mounted) return;
 
-      if (response.statusCode == 200 || response.statusCode == 204) { // 204 No Content is also success
+      if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
-          // Remove user locally for immediate UI update
+          // Remove user locally
           _unfollowedUsers.removeWhere((user) => user.id == userId);
+          // Decrement total count for the header
+          if (_totalUserCount > 0) {
+            _totalUserCount--;
+          }
         });
-        // Show success feedback (using custom overlay or SnackBar)
-         _showSuccessOverlay("User removed from this list.");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text("User removed from this list."), backgroundColor: Colors.green),
-        // );
+        _showSuccessOverlay("User hidden from this list.");
       } else {
-         // Try to parse backend error
-         String errorMsg = "Failed to remove user. Status: ${response.statusCode}";
-         try {
-            final errorData = json.decode(response.body);
-            errorMsg += ": ${errorData['detail'] ?? errorData['error'] ?? response.body}";
-         } catch (_) {
-            // Keep the basic error message if parsing fails
-         }
-         print("Backend remove error: $errorMsg");
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
-         );
+        String errorMsg = "Failed to hide user. Status: ${response.statusCode}";
+        try {
+          final errorData = json.decode(response.body);
+          errorMsg += ": ${errorData['detail'] ?? errorData['error'] ?? response.body}";
+        } catch (_) {}
+        print("Backend remove error: $errorMsg");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        );
       }
     } catch (e) {
-      print("Error removing user from list: $e");
+      print("Error hiding user from list: $e");
       if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text("An error occurred: ${e.toString()}"), backgroundColor: Colors.red),
-          );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("An error occurred: ${e.toString()}"), backgroundColor: Colors.red),
+        );
       }
     }
   }
 
-  // Confirmation Dialog
-  Future<Future<Object?>> _showRemoveConfirmationDialog(String userId, String username) async {
-    // Using the consistent AlertDialog style from previous examples
+  // --- Confirmation Dialog ---
+  Future<Future<Object?>> _showHideConfirmationDialog(String userId, String username) async {
      return showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.black.withOpacity(0.6),
-      transitionDuration: Duration(milliseconds: 300),
-      pageBuilder: (context, animation1, animation2) => Container(),
-      transitionBuilder: (context, a1, a2, widget) {
-        final scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-          CurvedAnimation(parent: a1, curve: Curves.easeOutCubic),
-        );
-        final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-           CurvedAnimation(parent: a1, curve: Curves.easeIn),
-        );
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: Colors.black.withOpacity(0.6),
+        transitionDuration: Duration(milliseconds: 300),
+        pageBuilder: (context, animation1, animation2) => Container(),
+        transitionBuilder: (context, a1, a2, widget) {
+            final scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+            CurvedAnimation(parent: a1, curve: Curves.easeOutCubic),
+            );
+            final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(parent: a1, curve: Curves.easeIn),
+            );
 
-        return ScaleTransition(
-          scale: scaleAnimation,
-          child: FadeTransition(
-            opacity: fadeAnimation,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0)),
-              title: Row(
-                children: [
-                  Icon(Icons.delete_outline, color: Colors.redAccent, size: 28),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Remove $username?',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                'Are you sure you want to remove $username from this list? This action cannot be undone.',
-                style: TextStyle(fontSize: 15, color: Colors.black87),
-              ),
-              actionsPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              actions: <Widget>[
-                TextButton(
-                  child: Text('Cancel', style: TextStyle(color: Colors.blueGrey, fontSize: 15)),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red, // Keep red for removal confirmation
-                    foregroundColor: Colors.white,
+            return ScaleTransition(
+              scale: scaleAnimation,
+              child: FadeTransition(
+                  opacity: fadeAnimation,
+                  child: AlertDialog(
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        borderRadius: BorderRadius.circular(16.0)),
+                    title: Text(
+                        'Hide ${username}?',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        overflow: TextOverflow.ellipsis,
+                    ),
+                    content: Text(
+                        'Are you sure you want to hide $username from this list?',
+                        style: TextStyle(fontSize: 15, color: Colors.black87),
+                    ),
+                    actionsPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    actions: <Widget>[
+                        TextButton(
+                          child: Text('Cancel', style: TextStyle(color: Colors.blueGrey, fontSize: 15)),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange, // Keep orange for hide confirmation
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                          child: Text('Hide', style: TextStyle(fontSize: 15)),
+                          onPressed: () {
+                              Navigator.of(context).pop();
+                              _hideUserFromList(userId); // Calls the hide function
+                          },
+                        ),
+                    ],
                   ),
-                  child: Text('Remove', style: TextStyle(fontSize: 15)),
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Close dialog first
-                    _removeUserFromList(userId); // Call the backend removal function
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+              ),
+            );
+        },
+     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // White background for the screen
       appBar: AppBar(
         title: Text("Who Unfollowed You"),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 1.0,
+        foregroundColor: Colors.black87, // Dark text for title
+        elevation: 0.5, // Subtle shadow below AppBar
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black87), // Standard back arrow
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
-      body: RefreshIndicator( // Added RefreshIndicator
-        onRefresh: _fetchUnfollowedUsers, // Calls fetch function on pull
-        child: _buildBody(), // Delegate body building
+      body: RefreshIndicator(
+        onRefresh: _fetchUnfollowedUsers, // Trigger initial fetch on pull-to-refresh
+        child: _buildBody(),
       ),
     );
   }
 
-  // Helper method to build the main body content
+  // --- Header Widget (with Alignment) ---
+  Widget _buildHeader() {
+    // Use _totalUserCount for display, show only if > 0 and not loading initial data
+    if (_totalUserCount <= 0 && !_isLoading) return SizedBox.shrink();
+    if (_isLoading) return SizedBox.shrink(); // Don't show during initial load
+
+    // ***** WRAP with Align for left alignment *****
+    return Align(
+      alignment: Alignment.centerLeft, // Force content to the left
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Text.rich(
+          TextSpan(
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            children: <TextSpan>[
+              TextSpan(
+                // Use _totalUserCount here
+                text: '$_totalUserCount user${_totalUserCount != 1 ? 's' : ''}',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold), // Highlight count
+              ),
+              TextSpan(text: ' unfollowed you recently'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  // --- Body Builder (with Button and Divider updates) ---
   Widget _buildBody() {
-    // Loading state
-    if (_isLoading) {
+    // --- Initial Loading State ---
+    if (_isLoading && _unfollowedUsers.isEmpty) {
       return Center(child: CircularProgressIndicator());
     }
 
-    // Error state
-    if (_hasError) {
+    // --- Error State ---
+    if (_hasError && _unfollowedUsers.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, color: Colors.red, size: 50),
+              Icon(Icons.cloud_off, color: Colors.grey[400], size: 60),
               SizedBox(height: 16),
               Text(
-                "Failed to load data",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                "Couldn't load data",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 8),
               Text(
-                 _errorMessage, // Show specific error
-                 style: TextStyle(color: Colors.grey[600]),
-                 textAlign: TextAlign.center,
+                _errorMessage,
+                style: TextStyle(color: Colors.grey[600]),
+                textAlign: TextAlign.center,
               ),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _fetchUnfollowedUsers, // Retry button
                 child: Text("Retry"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white
+                ),
               ),
             ],
           ),
@@ -279,136 +398,189 @@ class _WhoRemovedYouScreenState extends State<WhoRemovedYouScreen> {
       );
     }
 
-    // Empty state
-    if (_unfollowedUsers.isEmpty) {
-      // Make sure it's scrollable for RefreshIndicator
-      return LayoutBuilder(builder: (context, constraints) {
-         return SingleChildScrollView(
-           physics: AlwaysScrollableScrollPhysics(),
-           child: ConstrainedBox(
-             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-             child: Center(
-               child: Padding(
-                 padding: const EdgeInsets.all(20.0),
-                 child: Text(
-                   "No one has unfollowed you recently,\nor the list has been cleared.\nPull down to refresh.",
-                   textAlign: TextAlign.center,
-                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                 ),
-               ),
-             ),
-           ),
-         );
-      });
+    // --- Empty State ---
+    if (!_isLoading && _unfollowedUsers.isEmpty && !_hasError) {
+        return LayoutBuilder(builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: AlwaysScrollableScrollPhysics(), // Allow pull-to-refresh
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.person_add_disabled_outlined, size: 60, color: Colors.grey[400]),
+                      SizedBox(height: 16),
+                      Text(
+                        "No recent unfollowers found.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        "Pull down to refresh.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        });
     }
 
-    // Data loaded state - List view with Scrollbar
-    return Scrollbar( // ***** WRAP WITH SCROLLBAR *****
-      controller: _scrollController, // ** Link the controller **
-      thumbVisibility: true, // ** Make scrollbar always visible **
-      thickness: 8.0,
-      radius: Radius.circular(4.0),
-      child: ListView.builder(
-        controller: _scrollController, // ** Keep controller here too **
-        physics: AlwaysScrollableScrollPhysics(), // Ensure refresh works
-        itemCount: _unfollowedUsers.length,
-        itemBuilder: (context, index) {
-          final user = _unfollowedUsers[index];
-          return Card( // Use Card for better styling
-             margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-             elevation: 1.5,
-             child: ListTile(
-               contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-               leading: Stack( // Stack for verified badge
-                 alignment: Alignment.bottomRight,
-                 children: [
-                   CircleAvatar(
-                     backgroundImage: NetworkImage(user.profilePicUrl),
-                     radius: 25,
-                     backgroundColor: Colors.grey[200], // Placeholder color
-                   ),
-                   if (user.isVerified)
-                     Container(
-                       padding: EdgeInsets.all(1),
-                       decoration: BoxDecoration(
-                         color: Colors.white, shape: BoxShape.circle,
-                       ),
-                       child: Icon(Icons.check_circle, color: Colors.blue, size: 16),
-                     ),
-                 ],
-               ),
-               title: Text(
-                  user.username,
-                  style: TextStyle(fontWeight: FontWeight.w500),
-               ),
-               subtitle: Text(
-                  user.fullName,
-                  style: TextStyle(color: Colors.grey[600]),
-               ),
-               trailing: Tooltip( // Add tooltip for clarity
-                 message: "Remove ${user.username} from this list",
-                 child: ElevatedButton(
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.redAccent, // Slightly softer red
-                     foregroundColor: Colors.white,
-                     shape: RoundedRectangleBorder(
-                       borderRadius: BorderRadius.circular(20.0), // Pill shape
-                     ),
-                     padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                     elevation: 1.0,
-                   ),
-                   onPressed: () {
-                     _showRemoveConfirmationDialog(user.id, user.username);
-                   },
-                   child: Icon(Icons.delete_sweep_outlined, size: 20), // Use an icon? Or Text('Remove')
-                   // child: Text('Remove'),
-                 ),
-               ),
-             ),
-           );
-        },
-      ),
+    // --- Data Loaded State (List View) ---
+    return Column(
+      children: [
+        _buildHeader(), // Header is now left-aligned
+        Expanded(
+          child: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: true,
+            thickness: 6.0,
+            radius: Radius.circular(3.0),
+            child: ListView.separated(
+              controller: _scrollController, // Important for pagination trigger
+              physics: AlwaysScrollableScrollPhysics(), // Needed for RefreshIndicator
+              // Add 1 to item count if we are loading more or have a next page URL
+              itemCount: _unfollowedUsers.length + (_isLoadingMore || _nextPageUrl != null ? 1 : 0),
+              itemBuilder: (context, index) {
+                // --- Loading Indicator Logic ---
+                if (index == _unfollowedUsers.length) {
+                   if (_isLoadingMore) {
+                      // Currently loading more: Show spinner
+                      return Padding(
+                         padding: const EdgeInsets.symmetric(vertical: 16.0),
+                         child: Center(child: CircularProgressIndicator()),
+                      );
+                   } else if (_nextPageUrl != null) {
+                      // Not currently loading, but there IS a next page.
+                      // Show empty space at the bottom.
+                      return SizedBox(height: 40);
+                   } else {
+                      // Should not happen if itemCount logic is correct.
+                      return SizedBox.shrink();
+                   }
+                }
+
+                // --- Build User List Item ---
+                final user = _unfollowedUsers[index];
+                return ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                  leading: CircleAvatar(
+                    // Consider adding errorBuilder for NetworkImage
+                    backgroundImage: NetworkImage(user.profilePicUrl),
+                    radius: 24,
+                    backgroundColor: Colors.grey[200], // Placeholder color
+                  ),
+                  title: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: user.username,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        if (user.isVerified) // Add verified badge if applicable
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle, // Align icon nicely
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 4.0),
+                              child: Icon(Icons.verified, color: Colors.blue, size: 16),
+                            ),
+                          ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    user.fullName.isNotEmpty ? user.fullName : ' ', // Show full name or empty space
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // ***** UPDATED TRAILING BUTTON STYLE *****
+                  trailing: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87, // Standard dark text color
+                      side: BorderSide(color: Colors.grey.shade300, width: 1.0), // Lighter grey border
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0), // Rounded corners
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Button padding
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduce tap area slightly
+                    ),
+                    onPressed: () {
+                      // Show confirmation before hiding
+                      _showHideConfirmationDialog(user.id, user.username);
+                    },
+                    child: Text('Unfollow'), // Text matches the desired UI
+                  ),
+                );
+              },
+              // ***** UPDATED SEPARATOR BUILDER STYLE *****
+              separatorBuilder: (context, index) {
+                 // Avoid adding a divider after the last actual user item if loading indicator/placeholder is shown
+                 if (index == _unfollowedUsers.length - 1 && (_isLoadingMore || _nextPageUrl != null)) {
+                   return SizedBox.shrink(); // No divider before the final element
+                 }
+                 return Divider(
+                   height: 1, // Minimal height
+                   thickness: 1, // Standard thickness
+                   // Indent aligns divider with content start/end
+                   indent: 16.0, // Match ListTile content padding start
+                   endIndent: 16.0, // Match ListTile content padding end
+                   color: Colors.grey[200], // Subtle divider color
+                 );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  // Show the custom success overlay message (using the reusable widget)
+  // --- Success Overlay ---
   void _showSuccessOverlay(String message) {
-     OverlayEntry? overlayEntry; // Make nullable
+      OverlayEntry? overlayEntry;
 
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 60.0,
-        left: 0,
-        right: 0,
-        child: Align(
-            alignment: Alignment.center,
-            child: Material(
-              color: Colors.transparent,
-              child: SuccessMessageOverlay( // Use the reusable overlay
-                message: message, // Pass the specific message
-                onClose: () {
-                  overlayEntry?.remove();
-                  overlayEntry = null;
-                },
-              ),
+      overlayEntry = OverlayEntry(
+         builder: (context) => Positioned(
+            // Positioned near the top, below the AppBar
+            top: MediaQuery.of(context).padding.top + kToolbarHeight + 20,
+            left: 0,
+            right: 0,
+            child: Align(
+               alignment: Alignment.center,
+               child: Material(
+                  color: Colors.transparent,
+                  child: SuccessMessageOverlay( // Reusable success message widget
+                     message: message,
+                     onClose: () {
+                        overlayEntry?.remove();
+                        overlayEntry = null;
+                     },
+                  ),
+               ),
             ),
-        ),
-      ),
-    );
+         ),
+      );
+      // Insert the overlay into the overlay stack.
+      Overlay.of(context).insert(overlayEntry!);
+   }
 
-    // Ensure Overlay is available before inserting
-    Overlay.of(context).insert(overlayEntry!);
-    }
-
-}
+} // End of _WhoRemovedYouScreenState
 
 // --- User Data Model ---
-// Added null checks and ensured ID is string
 class User {
   final String id;
   final String username;
   final String fullName;
-  final bool isPrivate; // Included but not currently used in UI
+  final bool isPrivate;
   final bool isVerified;
   final String profilePicUrl;
 
@@ -421,27 +593,34 @@ class User {
     required this.profilePicUrl,
   });
 
+  // Factory constructor for creating a new User instance from a map.
   factory User.fromJson(Map<String, dynamic> json) {
+    // Helper function for safely casting dynamic values.
+    T? _safeCast<T>(dynamic value) => value is T ? value : null;
+
+    // Return a new User instance, handling potential nulls and type mismatches.
     return User(
-      id: json['id']?.toString() ?? '', // Ensure ID is string and handle null
-      username: json['username'] ?? 'Unknown User',
-      fullName: json['full_name'] ?? '', // Handle potential null full name
-      isPrivate: json['is_private'] ?? false, // Default to false if null
-      isVerified: json['is_verified'] ?? false, // Default to false if null
-      profilePicUrl: json['profile_pic_url'] ?? '', // Provide default or handle missing URL
+      // Safely handle ID which might be int or string in JSON.
+      id: _safeCast<int>(json['id'])?.toString() ?? _safeCast<String>(json['id']) ?? '',
+      username: _safeCast<String>(json['username']) ?? 'Unknown User', // Default if null
+      fullName: _safeCast<String>(json['full_name']) ?? '', // Default if null
+      isPrivate: _safeCast<bool>(json['is_private']) ?? false, // Default if null
+      isVerified: _safeCast<bool>(json['is_verified']) ?? false, // Default if null
+      // Provide a default placeholder image URL if profile pic URL is missing or null.
+      profilePicUrl: _safeCast<String>(json['profile_pic_url']) ??
+                     'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=?',
     );
   }
 }
 
-
-// --- Custom Success Message Overlay Widget --- (Same reusable one as before)
+// --- Custom Success Message Overlay Widget ---
 class SuccessMessageOverlay extends StatefulWidget {
   final VoidCallback onClose;
   final String message;
 
   SuccessMessageOverlay({
-      required this.onClose,
-      required this.message,
+    required this.onClose,
+    required this.message,
   });
 
   @override
@@ -453,25 +632,30 @@ class _SuccessMessageOverlayState extends State<SuccessMessageOverlay>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  Timer? _timer;
+  Timer? _timer; // Timer to auto-dismiss the overlay
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      vsync: this, duration: Duration(milliseconds: 400),
+      vsync: this, duration: Duration(milliseconds: 400), // Animation duration
     );
+    // Fade animation
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
-    _slideAnimation = Tween<Offset>(begin: Offset(0.0, 0.5), end: Offset.zero).animate(
+    // Slide animation (from top)
+    _slideAnimation = Tween<Offset>(begin: Offset(0.0, -1.5), end: Offset.zero).animate(
         CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)
     );
-    _controller.forward();
+    _controller.forward(); // Start the animation
+
+    // Set a timer to automatically close the overlay after 3 seconds
     _timer = Timer(Duration(seconds: 3), () {
       if (mounted) {
+         // Reverse the animation before closing
          _controller.reverse().then((_) {
-           if (mounted) { widget.onClose(); }
+           if (mounted) { widget.onClose(); } // Call the onClose callback
          });
       }
     });
@@ -479,33 +663,40 @@ class _SuccessMessageOverlayState extends State<SuccessMessageOverlay>
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
+    _timer?.cancel(); // Cancel the timer if the widget is disposed
+    _controller.dispose(); // Dispose the animation controller
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Apply fade and slide transitions
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: _slideAnimation,
         child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 20),
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          // Styling for the overlay container
+          margin: EdgeInsets.symmetric(horizontal: 20), // Horizontal margin
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12), // Inner padding
           decoration: BoxDecoration(
-            color: Colors.green[700],
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [ BoxShadow( color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: Offset(0, 4),) ]
+            color: Color(0xFF00A98F), // Custom green color
+            borderRadius: BorderRadius.circular(10), // Rounded corners
+            boxShadow: [ // Subtle shadow for depth
+              BoxShadow( color: Colors.black.withOpacity(0.1), blurRadius: 6, offset: Offset(0, 3),)
+            ]
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min, // Fit content size horizontally
             children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 24),
-              SizedBox(width: 12),
-              Text(
-                widget.message,
-                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 22), // Check icon
+              SizedBox(width: 10), // Spacing between icon and text
+              Flexible( // Allow text to wrap if too long
+                child: Text(
+                  widget.message, // Display the success message
+                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

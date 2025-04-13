@@ -424,18 +424,24 @@ def get_unfollowed_you(request):
     try:
         instagram_user_data = InstagramUser_data.objects.get(user=request.user)
 
-        # Directly retrieve the full user data from who_removed_follower
+        # Retrieve the full user data from who_removed_follower
         unfollowed_back_users = instagram_user_data.who_removed_follower
 
         # Ensure it is a list of dictionaries
         if not isinstance(unfollowed_back_users, list):
             unfollowed_back_users = []
 
+        total_count = len(unfollowed_back_users)
+
         # Set up pagination
         paginator = CustomPagination()
         paginated_data = paginator.paginate_queryset(unfollowed_back_users, request)
 
-        return paginator.get_paginated_response(paginated_data)
+        # Get the default paginated response and add total count
+        response = paginator.get_paginated_response(paginated_data)
+        response.data['total_count'] = total_count
+
+        return response
 
     except InstagramUser_data.DoesNotExist:
         return Response({"error": "Instagram user data not found"}, status=404)
@@ -485,18 +491,23 @@ def get_who_removed_you(request):
     try:
         instagram_user_data = InstagramUser_data.objects.get(user=request.user)
 
-        # Directly retrieve the full user data from who_removed_following
+        # Get the list of users who removed you
         unfollowed_back_users = instagram_user_data.who_removed_following
 
-        # Ensure it is a list of dictionaries
         if not isinstance(unfollowed_back_users, list):
             unfollowed_back_users = []
 
-        # Set up pagination
+        total_count = len(unfollowed_back_users)
+
+        # Paginate the list
         paginator = CustomPagination()
         paginated_data = paginator.paginate_queryset(unfollowed_back_users, request)
 
-        return paginator.get_paginated_response(paginated_data)
+        # Get the default paginated response and add total count
+        response = paginator.get_paginated_response(paginated_data)
+        response.data['total_count'] = total_count  # Add total user count here
+
+        return response
 
     except InstagramUser_data.DoesNotExist:
         return Response({"error": "Instagram user data not found"}, status=404)
