@@ -310,7 +310,7 @@ class _WhoRemovedYouScreenState extends State<WhoRemovedYouScreen> {
     return Scaffold(
       backgroundColor: Colors.white, // White background for the screen
       appBar: AppBar(
-        title: Text("Who Unfollowed You"),
+        title: Text("Users Removed You"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87, // Dark text for title
         elevation: 0.5, // Subtle shadow below AppBar
@@ -346,7 +346,7 @@ class _WhoRemovedYouScreenState extends State<WhoRemovedYouScreen> {
                 text: '$_totalUserCount user${_totalUserCount != 1 ? 's' : ''}',
                 style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold), // Highlight count
               ),
-              TextSpan(text: ' unfollowed you recently'),
+              TextSpan(text: ' removed you recently'),
             ],
           ),
         ),

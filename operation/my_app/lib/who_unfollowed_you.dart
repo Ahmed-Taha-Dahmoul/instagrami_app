@@ -292,7 +292,7 @@ class _UnfollowedYouScreenState extends State<UnfollowedYouScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         // *** UPDATED AppBar Title ***
-        title: Text("Users You Unfollowed"),
+        title: Text("Users Unfollowed You"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
@@ -326,7 +326,7 @@ class _UnfollowedYouScreenState extends State<UnfollowedYouScreen> {
                 style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold), // Use blue or another color?
               ),
               // *** UPDATED Header Text Context ***
-              TextSpan(text: ' you unfollowed recently'),
+              TextSpan(text: ' who unfollowed you recently'),
             ],
           ),
         ),
