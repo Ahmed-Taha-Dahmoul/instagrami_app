@@ -1,3 +1,3 @@
 class AppConfig {
-  static const String baseUrl = "https://instagramiapp.pythonanywhere.com/";
+  static const String baseUrl = "http://192.168.1.2:8000/";
 }

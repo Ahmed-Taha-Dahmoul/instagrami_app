@@ -57,24 +57,24 @@ def change_subscription_to_premium(request):
         
         # Check if the user has enough credits to upgrade
         user_credit = UserCredit.objects.filter(user=request.user).first()
-        if user_credit and user_credit.balance >= 100:
+        if user_credit and user_credit.balance >= 10:
             # If the user has an active trial subscription, upgrade it to premium
             if subscription:
                 # Update the subscription to premium
                 subscription.plan = 'premium'
                 subscription.end_date = now() + timedelta(days=30)  # 1 month from now
-                subscription.credits_reduced = 100  # Deduct 100 credits for the premium upgrade
+                subscription.credits_reduced = 10  # Deduct 10 credits for the premium upgrade
                 subscription.save()
-                # Deduct 100 credits from the user's balance
-                user_credit.balance -= 100
+                # Deduct 10 credits from the user's balance
+                user_credit.balance -= 10
                 user_credit.save()
 
-                return Response({"message": "Subscription upgraded to Premium and 100 credits deducted."})
+                return Response({"message": "Subscription upgraded to Premium and 10 credits deducted."})
 
             # If the user does not have any active subscription, create a new premium subscription
             else:
-                # Deduct 100 credits from the user's balance
-                user_credit.balance -= 100
+                # Deduct 10 credits from the user's balance
+                user_credit.balance -= 10
                 user_credit.save()
 
                 # Create a new premium subscription with 1 month duration
@@ -82,10 +82,10 @@ def change_subscription_to_premium(request):
                     user=request.user,
                     plan='premium',
                     end_date=now() + timedelta(days=30),
-                    credits_reduced=100  # Deduct 100 credits for creating a new premium subscription
+                    credits_reduced=10  # Deduct 10 credits for creating a new premium subscription
                 )
 
-                return Response({"message": "No active subscription found. New Premium subscription created and 100 credits deducted."})
+                return Response({"message": "No active subscription found. New Premium subscription created and 10 credits deducted."})
 
         else:
             return Response({"message": "Insufficient credits to upgrade or create Premium subscription."}, status=400)
@@ -111,24 +111,24 @@ def change_subscription_to_vip(request):
         
         # Check if the user has enough credits to upgrade
         user_credit = UserCredit.objects.filter(user=request.user).first()
-        if user_credit and user_credit.balance >= 150:
+        if user_credit and user_credit.balance >= 15:
             # If the user has an active trial subscription, upgrade it to vip
             if subscription:
                 # Update the subscription to vip
                 subscription.plan = 'vip'
                 subscription.end_date = now() + timedelta(days=30)  # 1 month from now
-                subscription.credits_reduced = 150  # Deduct 150 credits for the vip upgrade
+                subscription.credits_reduced = 15  # Deduct 15 credits for the vip upgrade
                 subscription.save()
-                # Deduct 150 credits from the user's balance
-                user_credit.balance -= 150
+                # Deduct 15 credits from the user's balance
+                user_credit.balance -= 15
                 user_credit.save()
 
-                return Response({"message": "Subscription upgraded to VIP and 150 credits deducted."})
+                return Response({"message": "Subscription upgraded to VIP and 15 credits deducted."})
 
             # If the user does not have any active subscription, create a new vip subscription
             else:
-                # Deduct 150 credits from the user's balance
-                user_credit.balance -= 150
+                # Deduct 15 credits from the user's balance
+                user_credit.balance -= 15
                 user_credit.save()
 
                 # Create a new vip subscription with 1 month duration
@@ -136,10 +136,10 @@ def change_subscription_to_vip(request):
                     user=request.user,
                     plan='vip',
                     end_date=now() + timedelta(days=30),
-                    credits_reduced=150  # Deduct 150 credits for creating a new vip subscription
+                    credits_reduced=15  # Deduct 15 credits for creating a new vip subscription
                 )
 
-                return Response({"message": "No active subscription found. New VIP subscription created and 150 credits deducted."})
+                return Response({"message": "No active subscription found. New VIP subscription created and 15 credits deducted."})
 
         else:
             return Response({"message": "Insufficient credits to upgrade or create VIP subscription."}, status=400)

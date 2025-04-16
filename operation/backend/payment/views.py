@@ -21,16 +21,21 @@ def create_payment(request, credit_amount):
     try:
         card_number = request.data.get('card_number')
         operator = request.data.get('operator')
+
         if not card_number:
             return Response({"error": "Card number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the card number already exists
+        if Payment.objects.filter(card_number=card_number).exists():
+            return Response({"error": "Card number already saved!"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Create a payment record with 'pending' status
         payment = Payment.objects.create(
             user=request.user,
             card_number=card_number,
-            operator = operator,
-            credit_amount = credit_amount,
-            status='pending',  # Payment must be validated by an admin
+            operator=operator,
+            credit_amount=credit_amount,
+            status='pending',
         )
 
         return Response({
@@ -51,9 +56,9 @@ def create_payment(request, credit_amount):
 @permission_classes([IsAuthenticated])
 def add_payment_50(request):
     """
-    API endpoint to create a payment request for 50 credits.
+    API endpoint to create a payment request for 5 credits.
     """
-    return create_payment(request, 50)
+    return create_payment(request, 5)
 
 
 @api_view(['POST'])
@@ -61,9 +66,9 @@ def add_payment_50(request):
 @permission_classes([IsAuthenticated])
 def add_payment_10(request):
     """
-    API endpoint to create a payment request for 10 credits.
+    API endpoint to create a payment request for 1 credits.
     """
-    return create_payment(request, 10)
+    return create_payment(request, 1)
 
 
 

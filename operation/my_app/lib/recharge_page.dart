@@ -6,9 +6,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // Make sure you have this config file or replace AppConfig.baseUrl with your actual URL string
 import 'config.dart';
 
-
-
-
 class RechargePage extends StatefulWidget {
   @override
   _RechargePageState createState() => _RechargePageState();
@@ -26,29 +23,28 @@ class _RechargePageState extends State<RechargePage> {
   String? _apiSuccessMessage;
 
   // --- Define colors for styling ---
-  final Color primaryColor = Colors.blue; // Adjusted to match image button
-  final Color selectedColor = Colors.blue.shade50; // Lighter blue for selection background
+  final Color primaryColor = Colors.blue;
+  final Color selectedColor = Colors.blue.shade50;
   final Color borderColor = Colors.grey.shade300;
-  final Color selectedBorderColor = Colors.blue; // Blue border when selected
-  final Color backgroundColor = Colors.grey.shade100; // Light grey background
+  final Color selectedBorderColor = Colors.blue;
+  final Color backgroundColor = Colors.grey.shade100;
   final Color cardBackgroundColor = Colors.white;
-  final Color headingColor = Colors.grey.shade700; // Slightly lighter heading
+  final Color headingColor = Colors.grey.shade700;
   final Color textColor = Colors.black87;
   final Color secondaryTextColor = Colors.grey.shade600;
   final Color errorColor = Colors.red.shade600;
   final Color successColor = Colors.green.shade600;
   // --- End Color Definitions ---
 
-  // Placeholder paths - ensure these assets exist in your project's pubspec.yaml and path
-  final String coinImage10 = 'assets/payment/1DT.png'; // Example path
-  final String coinImage50 = 'assets/payment/5DT.png'; // Example path
+  // Placeholder paths - ensure these assets exist
+  // final String coinImage10 = 'assets/payment/1DT.png'; // Example path
+  // final String coinImage50 = 'assets/payment/5DT.png'; // Example path
 
   // --- Operator Definitions (Names and Icons) ---
-  // !! Replace Icons with your Image.asset widgets later !!
   final Map<String, Widget> operatorIcons = {
-    'Ooredoo': Image.asset('assets/operators/Ooredoo_logo.png', height: 35), // Added path
-    'Telecom': Image.asset('assets/operators/tunisie_telcom.png', height: 35), // Added path
-    'Orange': Image.asset('assets/operators/Orange-Logo.png', height: 35),   // Added path
+    'Ooredoo': Image.asset('assets/operators/Ooredoo_logo.png', height: 35),
+    'Telecom': Image.asset('assets/operators/tunisie_telcom.png', height: 35),
+    'Orange': Image.asset('assets/operators/Orange-Logo.png', height: 35),
   };
   // --- End Operator Definitions ---
 
@@ -72,31 +68,14 @@ class _RechargePageState extends State<RechargePage> {
     );
   }
 
-  Future<void> _submitRecharge() async {
-    setState(() {
-      _apiErrorMessage = null;
-      _apiSuccessMessage = null;
-    });
-
-    // --- Validation ---
-    if (_selectedOperator == null) {
-       _showSnackbar("Please select an operator.", errorColor);
-       return;
-    }
-    if (_selectedAmount == null) {
-      _showSnackbar("Please select a recharge amount.", errorColor);
-      return;
-    }
-    if (!_formKey.currentState!.validate()) {
-      // Validation messages handled by TextFormField's validator
-      return;
-    }
-    // --- End Validation ---
-
-    _formKey.currentState!.save();
+  // --- Renamed original submit function to handle only the API call ---
+  Future<void> _performRechargeApiCall() async {
+    if (!mounted) return; // Check mount status before proceeding
 
     setState(() {
       _isSubmitting = true;
+      _apiErrorMessage = null;
+      _apiSuccessMessage = null;
     });
 
     String? token = await _secureStorage.read(key: 'access_token');
@@ -112,12 +91,11 @@ class _RechargePageState extends State<RechargePage> {
     }
 
     String cardNumber = _cardNumberController.text.trim();
-    // TODO: Update endpoint/body if operator needs to be sent to backend
-    String endpoint = "payment/add-payment-$_selectedAmount/"; // Assumes amount is in URL
+    // Endpoint uses selected amount
+    String endpoint = "payment/add-payment-$_selectedAmount/";
     Uri url = Uri.parse("${AppConfig.baseUrl}$endpoint");
 
     try {
-      // TODO: Modify body if backend expects operator AND card_number
       final response = await http.post(
         url,
         headers: {
@@ -126,7 +104,9 @@ class _RechargePageState extends State<RechargePage> {
         },
         body: jsonEncode({
           'card_number': cardNumber,
-          'operator': _selectedOperator, 
+          'operator': _selectedOperator,
+          // Add amount to body if backend requires it, otherwise keep in URL
+          // 'amount': _selectedAmount,
         }),
       );
 
@@ -149,22 +129,24 @@ class _RechargePageState extends State<RechargePage> {
            print("Could not parse success response body: $responseBody");
         }
 
+        final finalSuccessMessage = successMsg + newBalanceMsg;
+
         setState(() {
-          _apiSuccessMessage = successMsg + newBalanceMsg;
+          _apiSuccessMessage = finalSuccessMessage;
           _apiErrorMessage = null;
-          _selectedOperator = null; // Reset operator
-          _selectedAmount = null;   // Reset amount
-          _cardNumberController.clear();
-          _isSubmitting = false;
-          // Reset form state visually
-           _formKey.currentState?.reset();
+          _isSubmitting = false; // Set submitting false *before* popping
+          // Keep form data for a moment while showing success
         });
         _showSnackbar(_apiSuccessMessage!, successColor);
 
-        // Optional: Navigate back after success
-        // Future.delayed(Duration(seconds: 2), () {
-        //   if (mounted) Navigator.pop(context, true);
-        // });
+        // --- Navigate back after a short delay ---
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            // Pop the current RechargePage and return 'true' to indicate success
+            Navigator.of(context).pop(true);
+          }
+        });
+        // No need to reset form here, as the page will be popped
 
       } else { // Handle API Errors
         String errorMsg = "Failed (${response.statusCode}).";
@@ -182,12 +164,14 @@ class _RechargePageState extends State<RechargePage> {
            errorMsg += " Could not parse error details.";
            print("Could not parse error response body: $responseBody");
          }
-        setState(() {
-          _apiErrorMessage = errorMsg;
-          _apiSuccessMessage = null;
-          _isSubmitting = false;
-        });
-        _showSnackbar(_apiErrorMessage!, errorColor);
+        if (mounted) {
+           setState(() {
+             _apiErrorMessage = errorMsg;
+             _apiSuccessMessage = null;
+             _isSubmitting = false;
+           });
+           _showSnackbar(_apiErrorMessage!, errorColor);
+        }
       }
     } catch (e) { // Catch network exceptions
       if (!mounted) return;
@@ -200,6 +184,130 @@ class _RechargePageState extends State<RechargePage> {
     }
   }
 
+  // --- New function to handle validation and show confirmation ---
+  Future<void> _handleSubmissionAttempt() async {
+     setState(() {
+      _apiErrorMessage = null; // Clear previous errors
+      _apiSuccessMessage = null;
+    });
+
+    // --- Validation ---
+    if (_selectedOperator == null) {
+       _showSnackbar("Please select an operator.", errorColor);
+       return;
+    }
+    if (_selectedAmount == null) {
+      _showSnackbar("Please select a recharge amount.", errorColor);
+      return;
+    }
+    if (!_formKey.currentState!.validate()) {
+      // Validation messages handled by TextFormField's validator
+      return;
+    }
+    // --- End Validation ---
+
+    _formKey.currentState!.save(); // Save form data
+
+    // --- Show Confirmation Dialog ---
+    final bool? confirmed = await _showConfirmationDialog();
+
+    // --- If confirmed, proceed with API call ---
+    if (confirmed == true) {
+       // Make sure we are still mounted after the dialog
+       if (mounted) {
+         await _performRechargeApiCall();
+       }
+    } else {
+       // User cancelled, do nothing or maybe show a cancellation message
+       // print("Recharge cancelled by user.");
+    }
+  }
+
+  // --- New Confirmation Dialog Widget ---
+  Future<bool?> _showConfirmationDialog() {
+    // Get the icon for the selected operator
+    Widget operatorIcon = operatorIcons[_selectedOperator!] ?? Icon(Icons.phone_android, color: secondaryTextColor); // Fallback icon
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: !_isSubmitting, // Prevent dismissal while submitting
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+          ),
+          backgroundColor: cardBackgroundColor,
+          title: Text(
+            "Confirm Recharge",
+            style: TextStyle(color: headingColor, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // Make column height fit content
+            children: <Widget>[
+              Divider(color: borderColor),
+              SizedBox(height: 15),
+              Row(
+                children: [
+                  Text("Operator:", style: TextStyle(color: secondaryTextColor, fontSize: 15)),
+                  Spacer(),
+                  operatorIcon, // Display operator icon
+                  SizedBox(width: 8),
+                  Text(
+                    _selectedOperator!,
+                    style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              SizedBox(height: 15),
+              Row(
+                children: [
+                  Text("Amount:", style: TextStyle(color: secondaryTextColor, fontSize: 15)),
+                  Spacer(),
+                  Icon(Icons.monetization_on_outlined, color: Colors.orange.shade600, size: 20), // Coin icon
+                  SizedBox(width: 8),
+                  Text(
+                    "$_selectedAmount Coins",
+                    style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              SizedBox(height: 15),
+              SizedBox(height: 10),
+              Divider(color: borderColor),
+            ],
+          ),
+          actionsPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: secondaryTextColor, fontSize: 15),
+              ),
+              onPressed: _isSubmitting ? null : () { // Disable cancel if already submitting
+                Navigator.of(context).pop(false); // Close dialog, return false
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              // Disable confirm button if already submitting
+              onPressed: _isSubmitting ? null : () {
+                Navigator.of(context).pop(true); // Close dialog, return true
+              },
+              child: Text("Confirm", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -207,10 +315,11 @@ class _RechargePageState extends State<RechargePage> {
       backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Text("Recharge Balance", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        backgroundColor: cardBackgroundColor, // White AppBar
-        elevation: 0.5, // Subtle shadow
+        backgroundColor: cardBackgroundColor,
+        elevation: 0.5,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
+          // Make sure back button works even if submitting (user might want to cancel)
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -220,7 +329,7 @@ class _RechargePageState extends State<RechargePage> {
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, // Align titles to the left
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // --- Operator Selection ---
                 Text(
@@ -229,14 +338,14 @@ class _RechargePageState extends State<RechargePage> {
                 ),
                 SizedBox(height: 15),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space out operators
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: operatorIcons.keys.map((operatorName) {
                     return _buildOperatorOptionBox(
                       name: operatorName,
-                      // !! Replace this Icon with your Image.asset widget !!
                       iconWidget: operatorIcons[operatorName]!,
                       isSelected: _selectedOperator == operatorName,
-                      onTap: () => setState(() { _selectedOperator = operatorName; }),
+                      // Disable selection if submitting
+                      onTap: _isSubmitting ? (){} : () => setState(() { _selectedOperator = operatorName; }),
                     );
                   }).toList(),
                 ),
@@ -249,19 +358,19 @@ class _RechargePageState extends State<RechargePage> {
                 ),
                 SizedBox(height: 15),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space out amounts
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildRechargeOptionBox(
                       amount: 10,
-                      // imagePath: coinImage10, // Use this if you have the image asset
                       isSelected: _selectedAmount == 10,
-                      onTap: () => setState(() { _selectedAmount = 10; }),
+                       // Disable selection if submitting
+                      onTap: _isSubmitting ? (){} : () => setState(() { _selectedAmount = 10; }),
                     ),
                     _buildRechargeOptionBox(
                       amount: 50,
-                      // imagePath: coinImage50, // Use this if you have the image asset
                       isSelected: _selectedAmount == 50,
-                      onTap: () => setState(() { _selectedAmount = 50; }),
+                      // Disable selection if submitting
+                      onTap: _isSubmitting ? (){} : () => setState(() { _selectedAmount = 50; }),
                     ),
                   ],
                 ),
@@ -275,9 +384,9 @@ class _RechargePageState extends State<RechargePage> {
                 SizedBox(height: 15),
                 TextFormField(
                   controller: _cardNumberController,
+                  // Disable input if submitting
+                  enabled: !_isSubmitting,
                   decoration: InputDecoration(
-                    // labelText: "Enter Card Number", // Using hintText is closer to image
-                    // labelStyle: TextStyle(color: secondaryTextColor),
                     hintText: "Enter your card number",
                     hintStyle: TextStyle(color: Colors.grey.shade400),
                     border: OutlineInputBorder(
@@ -292,6 +401,10 @@ class _RechargePageState extends State<RechargePage> {
                        borderRadius: BorderRadius.circular(10),
                        borderSide: BorderSide(color: primaryColor, width: 1.5),
                     ),
+                     disabledBorder: OutlineInputBorder( // Style when disabled
+                       borderRadius: BorderRadius.circular(10),
+                       borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
                     errorBorder: OutlineInputBorder(
                        borderRadius: BorderRadius.circular(10),
                        borderSide: BorderSide(color: errorColor, width: 1.5),
@@ -301,9 +414,9 @@ class _RechargePageState extends State<RechargePage> {
                        borderSide: BorderSide(color: errorColor, width: 1.5),
                     ),
                     filled: true,
-                    fillColor: cardBackgroundColor,
-                    prefixIcon: Icon(Icons.credit_card_outlined, color: secondaryTextColor, size: 20), // Icon inside
-                    contentPadding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0), // Adjust padding
+                    fillColor: _isSubmitting ? Colors.grey.shade100 : cardBackgroundColor, // Grey out when disabled
+                    prefixIcon: Icon(Icons.credit_card_outlined, color: secondaryTextColor, size: 20),
+                    contentPadding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0),
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -314,30 +427,32 @@ class _RechargePageState extends State<RechargePage> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Card number cannot be empty';
                     }
-                    // Basic length check - adjust if needed
-                    if (value.trim().length < 13 || value.trim().length > 19) {
+                    if (value.trim().length < 13 || value.trim().length > 19) { // Adjust length as needed
                        return 'Enter a valid card number length';
                     }
-                    return null; // Valid
+                    return null;
                   },
                 ),
-                SizedBox(height: 40), // More space before button
+                SizedBox(height: 40),
 
                 // --- Submit Button ---
-                SizedBox( // Ensure button takes full width
+                SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15), // Slightly less padding
+                       // Slightly greyed out when loading
+                      disabledBackgroundColor: primaryColor.withOpacity(0.7),
+                      padding: EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10), // Match input field radius
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       elevation: 2,
                       textStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                     ),
-                    onPressed: _isSubmitting ? null : _submitRecharge,
+                    // Calls the validation/confirmation handler now
+                    onPressed: _isSubmitting ? null : _handleSubmissionAttempt,
                     child: _isSubmitting
                         ? SizedBox(
                             height: 22,
@@ -347,10 +462,11 @@ class _RechargePageState extends State<RechargePage> {
                               strokeWidth: 2.5,
                             ),
                           )
-                        : Text("Submit Recharge"),
+                        // Changed text slightly to imply it starts the process
+                        : Text("Proceed to Recharge"),
                   ),
                 ),
-                 SizedBox(height: 20), // Padding at the bottom
+                 SizedBox(height: 20),
               ],
             ),
           ),
@@ -359,108 +475,117 @@ class _RechargePageState extends State<RechargePage> {
     );
   }
 
-  // Helper for Operator Selection Boxes
+  // Helper for Operator Selection Boxes (No changes needed here, but added disable logic in build)
   Widget _buildOperatorOptionBox({
     required String name,
-    required Widget iconWidget, // Changed to Widget to allow Icon or Image
+    required Widget iconWidget,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    // Calculate width dynamically - approx 1/3rd minus padding/spacing
-    double boxWidth = (MediaQuery.of(context).size.width - 40 - 30) / 3; // (Screenwidth - horizontal padding - space between boxes) / 3
+    double boxWidth = (MediaQuery.of(context).size.width - 40 - 30) / 3;
+    bool isDisabled = _isSubmitting; // Check if should be disabled
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: boxWidth,
-        padding: EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: isSelected ? selectedColor : cardBackgroundColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? selectedBorderColor : borderColor,
-            width: isSelected ? 1.5 : 1.0,
-          ),
-           boxShadow: [ // Subtle shadow
-             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 4,
-              offset: Offset(0, 2)
-            )
-           ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // !! Replace Icon with your Image.asset if needed !!
-            iconWidget, // Use the provided widget (Icon or Image)
-            SizedBox(height: 8),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: textColor
+    return IgnorePointer( // Makes the GestureDetector ignore taps when disabled
+      ignoring: isDisabled,
+      child: GestureDetector(
+        onTap: onTap, // onTap itself is conditionally disabled in build method
+        child: Opacity( // Visually grey out when disabled
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: Container(
+            width: boxWidth,
+            padding: EdgeInsets.symmetric(vertical: 15),
+            decoration: BoxDecoration(
+              color: isSelected ? selectedColor : cardBackgroundColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelected ? selectedBorderColor : borderColor,
+                width: isSelected ? 1.5 : 1.0,
               ),
-              textAlign: TextAlign.center,
+               boxShadow: [
+                 BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: Offset(0, 2)
+                )
+               ],
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                iconWidget,
+                SizedBox(height: 8),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: textColor
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
 
-  // Helper for Amount Selection Boxes
+  // Helper for Amount Selection Boxes (No changes needed here, but added disable logic in build)
   Widget _buildRechargeOptionBox({
     required int amount,
-    // required String imagePath, // Uncomment and use if you have image assets
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-     // Calculate width dynamically - approx 1/2 minus padding/spacing
-    double boxWidth = (MediaQuery.of(context).size.width - 40 - 20) / 2; // (Screenwidth - horizontal padding - space between) / 2
+    double boxWidth = (MediaQuery.of(context).size.width - 40 - 20) / 2;
+    bool isDisabled = _isSubmitting; // Check if should be disabled
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: boxWidth,
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? selectedColor : cardBackgroundColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? selectedBorderColor : borderColor,
-            width: isSelected ? 1.5 : 1.0,
+     return IgnorePointer( // Makes the GestureDetector ignore taps when disabled
+      ignoring: isDisabled,
+      child: GestureDetector(
+        onTap: onTap, // onTap itself is conditionally disabled in build method
+        child: Opacity( // Visually grey out when disabled
+          opacity: isDisabled ? 0.5 : 1.0,
+          child: Container(
+            width: boxWidth,
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            decoration: BoxDecoration(
+              color: isSelected ? selectedColor : cardBackgroundColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelected ? selectedBorderColor : borderColor,
+                width: isSelected ? 1.5 : 1.0,
+              ),
+              boxShadow: [
+                 BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: Offset(0, 2)
+                )
+               ],
+            ),
+            child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                     Icons.monetization_on_outlined, // Placeholder Coin Icon
+                     color: Colors.orange.shade600,
+                     size: 24,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    "$amount Coins",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: textColor
+                    ),
+                  ),
+                ],
+              ),
           ),
-          boxShadow: [ // Subtle shadow
-             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 4,
-              offset: Offset(0, 2)
-            )
-           ],
         ),
-        child: Row( // Changed to Row to match image layout (Icon | Text)
-            mainAxisAlignment: MainAxisAlignment.center, // Center content horizontally
-            children: [
-              // !! Replace Icon with your Image.asset(imagePath, height: 24, ...) !!
-              Icon(
-                 Icons.monetization_on_outlined, // Placeholder Coin Icon
-                 color: Colors.orange.shade600,
-                 size: 24,
-              ),
-              SizedBox(width: 10), // Space between icon and text
-              Text(
-                "$amount Coins",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                  color: textColor
-                ),
-              ),
-            ],
-          ),
       ),
     );
   }
