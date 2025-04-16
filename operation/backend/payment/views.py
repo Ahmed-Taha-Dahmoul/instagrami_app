@@ -20,7 +20,7 @@ def create_payment(request, credit_amount):
     """
     try:
         card_number = request.data.get('card_number')
-        operator = request.data.get('operator')
+        operator = request.data.get('operator','').strip().lower()
 
         if not card_number:
             return Response({"error": "Card number is required"}, status=status.HTTP_400_BAD_REQUEST)

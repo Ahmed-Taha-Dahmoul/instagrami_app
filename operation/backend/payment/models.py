@@ -23,8 +23,8 @@ class Payment(models.Model):
     ]
 
     CREDIT_CHOICES = [
-        (50, '50 Credits'),
-        (10, '10 Credits'),
+        (5, '5 Credits'),
+        (1, '1 Credits'),
     ]
 
     OPERATOR_CHOICES = [
