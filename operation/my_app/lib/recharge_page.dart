@@ -42,7 +42,7 @@ class _RechargePageState extends State<RechargePage> {
 
   // --- Operator Definitions (Names and Icons) ---
   final Map<String, Widget> operatorIcons = {
-    'Ooredoo': Image.asset('assets/operators/Ooredoo_logo.png', height: 35),
+    'Ooredoo': Image.asset('assets/operators/Ooredoo_logo.png', height: 30),
     'Telecom': Image.asset('assets/operators/tunisie_telcom.png', height: 35),
     'Orange': Image.asset('assets/operators/Orange-Logo.png', height: 35),
   };

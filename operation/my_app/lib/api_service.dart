@@ -283,7 +283,6 @@ class ApiService {
         },
       );
 
-      print(response.body);
 
       if (response.statusCode == 200) {
         return true;  // If status code is 200, return true
@@ -296,5 +295,33 @@ class ApiService {
       return false;  // In case of exception, return false
     }
   }
+
+
+  static Future<Map<String, dynamic>> fetchInstagramStatsDifference(String token) async {
+    String url = "${AppConfig.baseUrl}api/instagram-stats-difference/"; // <- match your Django route
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print(response.body);
+        return json.decode(response.body);
+      } else {
+        return {
+          "error": "Failed to fetch stats: ${response.statusCode}",
+          "details": response.body
+        };
+      }
+    } catch (e) {
+      return {"error": "Exception occurred", "details": e.toString()};
+    }
+  }
+
 
 }

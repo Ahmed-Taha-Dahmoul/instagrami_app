@@ -29,8 +29,13 @@ class InstagramUser_data(models.Model):
     instagram_username = models.CharField(max_length=255, blank=True)
     instagram_full_name = models.CharField(max_length=255, blank=True)
     
+    
     instagram_follower_count = models.PositiveIntegerField( blank = True , null=True)
+    old_instagram_follower_count = models.PositiveIntegerField( blank = True , null=True)
+
     instagram_following_count = models.PositiveIntegerField( blank = True , null=True)
+    old_instagram_following_count = models.PositiveIntegerField( blank = True , null=True)
+    
     instagram_total_posts = models.PositiveIntegerField(blank = True , null=True)
     instagram_biography = models.TextField(blank=True)
     instagram_profile_picture_url = models.URLField(max_length=1000, blank=True)

@@ -574,6 +574,8 @@ def save_instagram_user_profile(request):
             instagram_user_data = InstagramUser_data.objects.get(user=request.user)
             created = False
             previous_follower_count = instagram_user_data.instagram_follower_count  # Get the previous count
+            instagram_user_data.old_instagram_follower_count = previous_follower_count
+            instagram_user_data.old_instagram_following_count = instagram_user_data.instagram_following_count
         except InstagramUser_data.DoesNotExist:
             instagram_user_data = InstagramUser_data(user=request.user)
             created = True
@@ -663,7 +665,7 @@ def get_instagram_user_profile(request):
 
 
 
-#traj3elna unfollow status
+#traj3elna unfollow status check fi home page
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
@@ -898,6 +900,63 @@ def update_last_time_fetched(request):
 
 
 
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def instagram_stats_difference(request):
+    try:
+        instagram_user_data = InstagramUser_data.objects.filter(user=request.user).last()
+
+        if not instagram_user_data:
+            return Response({'error': 'Instagram data not found for this user.'}, status=404)
+
+        # Follower/following difference
+        follower_diff = None
+        following_diff = None
+
+        if instagram_user_data.instagram_follower_count is not None and instagram_user_data.old_instagram_follower_count is not None:
+            follower_diff = instagram_user_data.instagram_follower_count - instagram_user_data.old_instagram_follower_count
+
+        if instagram_user_data.instagram_following_count is not None and instagram_user_data.old_instagram_following_count is not None:
+            following_diff = instagram_user_data.instagram_following_count - instagram_user_data.old_instagram_following_count
+
+        # Who unfollowed you
+        who_unfollowed_you = instagram_user_data.who_removed_follower
+        if not isinstance(who_unfollowed_you, list):
+            who_unfollowed_you = []
+        unfollowed_you_count = len(who_unfollowed_you)
+
+        # Who you unfollowed
+        removed_following = instagram_user_data.who_removed_following
+        if not isinstance(removed_following , list):
+            removed_following = []
+        removed_following_count = len(removed_following )
+
+        # Who doesn’t follow you back
+        dont_follow_back_users = instagram_user_data.who_i_dont_follow_he_followback
+        if not isinstance(dont_follow_back_users, list):
+            dont_follow_back_users = []
+        dont_follow_back_count = len(dont_follow_back_users)
+
+        # Who you don’t follow back
+        you_dont_follow_back = instagram_user_data.who_i_follow_he_dont_followback
+        if not isinstance(you_dont_follow_back, list):
+            you_dont_follow_back = []
+        you_dont_follow_back_count = len(you_dont_follow_back)
+
+        return Response({
+            'follower_difference': follower_diff,
+            'following_difference': following_diff,
+            'unfollowed_you_count': unfollowed_you_count,
+            'removed_following_count': removed_following_count,
+            'dont_follow_back_count': you_dont_follow_back_count,
+            'you_dont_follow_back_count': dont_follow_back_count
+        })
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
 
 
 
