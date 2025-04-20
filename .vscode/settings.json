@@ -1,0 +1,4 @@
+{
+    "cmake.ignoreCMakeListsMissing": true ,
+    "python.terminal.activateEnvironment": true
+}

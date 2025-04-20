@@ -61,7 +61,7 @@ def get_dynamic_instagram_data():
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920x1080')
     options.add_argument('--incognito')
-
+    #options.add_argument('--headless')
     user_agent = random.choice(USER_AGENTS)
     options.add_argument(f"user-agent={user_agent}")
 
@@ -73,7 +73,6 @@ def get_dynamic_instagram_data():
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.NAME, "username"))
         )
-
         username_field = driver.find_element(By.NAME, "username")
         password_field = driver.find_element(By.NAME, "password")
         username_field.send_keys(username)
@@ -82,6 +81,7 @@ def get_dynamic_instagram_data():
         login_button = driver.find_element(By.XPATH, "//button[@type='submit']")
         login_button.click()
 
+        # Verification handling
         try:
             WebDriverWait(driver, 20).until(
                 EC.any_of(
@@ -89,10 +89,48 @@ def get_dynamic_instagram_data():
                     EC.presence_of_element_located((By.XPATH, "//div[@role='radiogroup']"))
                 )
             )
-            print("Verification might be required.")
-        except:
-            pass
+            print("Verification required.")
 
+            # Check if verification selection is needed
+            verification_selection = driver.find_elements(By.XPATH, "//div[@role='radiogroup']")
+            if verification_selection:
+                print("Multiple verification methods available.")
+                # Select either phone number or email for verification
+                # Prioritize phone number if available, otherwise choose email
+                phone_option = driver.find_elements(By.XPATH, "//input[@type='radio' and contains(@value, '+')]") # Assuming phone numbers start with '+'
+                email_option = driver.find_elements(By.XPATH, "//input[@type='radio' and contains(@value, '@')]") # Assuming email contains '@'
+
+                if phone_option:
+                    phone_option[0].click()
+                    print("Selected phone number for verification.")
+                elif email_option:
+                    email_option[0].click()
+                    print("Selected email for verification.")
+                else:
+                    print("Could not find phone or email verification option. Skipping.")
+
+                # Click continue after selecting the verification method
+                continue_button = driver.find_element(By.XPATH, "//div[contains(text(), 'Continue')]") # Assuming "Continue" is the button text
+                continue_button.click()
+
+            # Wait for the verification code input field
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.NAME, "verificationCode"))
+            )
+            print("Please enter the verification code.")
+
+            verification_field = driver.find_element(By.NAME, "verificationCode")
+            verification_code = input()
+            verification_field.send_keys(verification_code)
+
+                # Find and click the confirm button
+            confirm_button = driver.find_element(By.XPATH, "//button[text()='Confirmer']")
+            confirm_button.click()
+            
+        except:
+            print("No verification required or handled.")
+
+        # Wait for successful login (presence of direct inbox link)
         WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/direct/inbox/')]"))
         )
@@ -120,3 +158,4 @@ def get_dynamic_instagram_data():
             return None
     finally:
         driver.quit()
+

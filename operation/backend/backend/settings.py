@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-moo*gk$-3z2t^cyd-*6zo(2y(mjj%@)425@-q=v+x=(o9+1cnn
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -46,6 +46,9 @@ INSTALLED_APPS = [
     'api',
     
     'rest_framework_simplejwt',
+    'corsheaders',
+    'payment',
+    'subscription',
 ]
 
 
@@ -66,6 +69,11 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_CREDENTIALS = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -98,17 +106,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = os.environ.get("REDIS_PORT", 6379)
+REDIS_DB = os.environ.get("REDIS_DB", 0)
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'instagram_db',  # The name of your PostgreSQL database
+        'USER': 'postgres',  # Your PostgreSQL username
+        'PASSWORD': '2002ahmed',  # Your PostgreSQL password
+        'HOST': 'localhost',  # 'localhost' if PostgreSQL is on the same machine
+        'PORT': '5432',  # The default PostgreSQL port (5432)
     }
 }
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760
+
+from django.core.asgi import get_asgi_application
+application = get_asgi_application()
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

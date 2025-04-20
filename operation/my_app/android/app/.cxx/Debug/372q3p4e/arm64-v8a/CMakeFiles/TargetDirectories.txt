@@ -1,0 +1,2 @@
+C:/Users/friv1/Desktop/github/instagram_unfollowers/operation/my_app/android/app/.cxx/Debug/372q3p4e/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/friv1/Desktop/github/instagram_unfollowers/operation/my_app/android/app/.cxx/Debug/372q3p4e/arm64-v8a/CMakeFiles/rebuild_cache.dir
