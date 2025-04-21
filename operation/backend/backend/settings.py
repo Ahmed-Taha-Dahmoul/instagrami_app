@@ -115,12 +115,12 @@ REDIS_DB = os.environ.get("REDIS_DB", 0)
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'instagram_db',  # The name of your PostgreSQL database
-        'USER': 'postgres',  # Your PostgreSQL username
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'default',  # The name of your PostgreSQL database
+        'USER': 'instagramiapp',  # Your PostgreSQL username
         'PASSWORD': '2002ahmed',  # Your PostgreSQL password
-        'HOST': 'localhost',  # 'localhost' if PostgreSQL is on the same machine
-        'PORT': '5432',  # The default PostgreSQL port (5432)
+        'HOST': 'instagramiapp.mysql.pythonanywhere-services.com',  # 'localhost' if PostgreSQL is on the same machine
+        'PORT': '3306',  # The default PostgreSQL port (5432)
     }
 }
 
