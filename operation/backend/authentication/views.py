@@ -29,6 +29,8 @@ def register(request):
     """ Register a new user and return JWT tokens """
     username = request.data.get('username')
     password = request.data.get('password')
+    first_name = request.data.get('first_name', '')
+    
 
     if not username or not password:
         return Response({"error": "Username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -37,7 +39,12 @@ def register(request):
         return Response({"error": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
     # Create user
-    user = User.objects.create_user(username=username, password=password)
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        first_name=first_name,
+        
+    )
 
     # Generate JWT tokens for the new user
     tokens = get_tokens_for_user(user)
@@ -46,4 +53,6 @@ def register(request):
         "message": "User created successfully",
         "access": tokens['access'],
         "refresh": tokens['refresh'],
+        "full_name": f"{user.first_name}".strip()
     }, status=status.HTTP_201_CREATED)
+
