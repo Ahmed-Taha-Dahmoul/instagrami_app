@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'config.dart';
 import 'encryption.dart';
-import 'package:faker/faker.dart'; 
+
 
 
 class ApiService {
@@ -51,10 +51,7 @@ class ApiService {
   }
 
 
-  static String _generateRandomUserAgent() {
-    final faker = Faker();
-    return faker.internet.userAgent();
-  } 
+  
 
 
   //bech tfechi profile mta3 user men instagram w tab3thou lel backend
@@ -70,16 +67,8 @@ class ApiService {
     print("Request URL: $url");
 
     try {
-      String userAgent = _generateRandomUserAgent();
 
-      final headers = {
-        "cookie": "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
-        "referer": "https://www.instagram.com/$userId/",
-        "x-csrftoken": csrftoken,
-        "x-ig-app-id": xIgAppId,
-        "content-type": "application/x-www-form-urlencoded",
-        "user-agent": userAgent,
-      };
+      
 
       // GraphQL query variables
       final variables = {
@@ -94,7 +83,7 @@ class ApiService {
       };
 
       print("Sending request to Instagram GraphQL...");
-      final response = await http.post(Uri.parse(url), headers: headers, body: body);
+      final response = await http.post(Uri.parse(url), body: body);
 
       print("Status Code: ${response.statusCode}");
       print('response body :');

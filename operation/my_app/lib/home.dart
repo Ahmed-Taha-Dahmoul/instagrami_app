@@ -325,6 +325,8 @@ class _HomePageState extends State<HomePage>
                 } else {
                   setState(() {
                     isLoading = false;
+                    isFirstTimeUser = true;
+                    isInstagramConnected = false;
                     isMoreThanCount = !checkCounts;
                     errorMessage =
                         "Failed to fetch follower/following data on reconnect.";
