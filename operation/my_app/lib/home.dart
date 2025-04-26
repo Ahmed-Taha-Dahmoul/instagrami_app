@@ -323,6 +323,10 @@ class _HomePageState extends State<HomePage>
                   print(
                       "Instagram user info saved, profile fetched, counts checked, and data sent if required.");
                 } else {
+                  // ignore: unused_local_variable
+                  bool flagUpdated =
+                      await FirstTimeFlagService.postFirstTimeFlag(
+                          accessToken, true);
                   setState(() {
                     isLoading = false;
                     isFirstTimeUser = true;
