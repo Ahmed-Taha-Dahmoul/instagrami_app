@@ -1,15 +1,23 @@
 {
     "data": {
         "user": {
-            "friendship_status": null,
+            "friendship_status": {
+                "following": false,
+                "blocking": false,
+                "is_feed_favorite": false,
+                "outgoing_request": false,
+                "followed_by": false,
+                "incoming_request": false,
+                "is_restricted": false,
+                "is_bestie": false,
+                "muting": false,
+                "is_muting_reel": false
+            },
             "gating": null,
             "is_memorialized": false,
             "is_private": true,
-            "has_story_archive": true,
-            "supervision_info": {
-                "is_guardian_of_viewer": false,
-                "is_supervised_by_viewer": false
-            },
+            "has_story_archive": null,
+            "supervision_info": null,
             "is_regulated_c18": false,
             "regulated_news_in_locations": [],
             "bio_links": [
@@ -30,23 +38,23 @@
             "pk": "7931218225",
             "live_broadcast_visibility": null,
             "live_broadcast_id": null,
-            "profile_pic_url": "https://instagram.ftun4-2.fna.fbcdn.net/v/t51.2885-19/468238178_1090533185486238_1766558771032747843_n.jpg?stp=dst-jpg_e0_s150x150_tt6&_nc_ht=instagram.ftun4-2.fna.fbcdn.net&_nc_cat=106&_nc_oc=Q6cZ2QHAge7M8koMVV7uYR5oEWI8GQ6aOgIIhHFYClZlr2Xr2PB99dmKRBS6Jh68t5Y9cLA&_nc_ohc=prahZJUcrUsQ7kNvwH-W1XS&_nc_gid=pkBMEGdXAui0rRJgfddvlg&edm=ALGbJPMBAAAA&ccb=7-5&oh=00_AfFmuJTAcb2d6iHN7gDDN8iNzS5r_9oNxncTHobOblgneg&oe=68128742&_nc_sid=7d3ac5",
+            "profile_pic_url": "https://instagram.ftun10-2.fna.fbcdn.net/v/t51.2885-19/468238178_1090533185486238_1766558771032747843_n.jpg?stp=dst-jpg_e0_s150x150_tt6&_nc_ht=instagram.ftun10-2.fna.fbcdn.net&_nc_cat=106&_nc_oc=Q6cZ2QERlQlkJm35ojsF6s1JX18Jfiq2nubwqYy4nWMqImMiecvwtNati9L6RRMR_wJthxw&_nc_ohc=k0QE5sfpd3YQ7kNvwHusTxO&_nc_gid=WLkUINhm5M1Uj0vdg4eyMw&edm=ALGbJPMBAAAA&ccb=7-5&oh=00_AfLpG_WKQ3AK2gsH9GilOOrk4jQbyZAKlsKtMR4_G17iNA&oe=681FB642&_nc_sid=7d3ac5",
             "hd_profile_pic_url_info": {
-                "url": "https://instagram.ftun4-2.fna.fbcdn.net/v/t51.2885-19/468238178_1090533185486238_1766558771032747843_n.jpg?_nc_ht=instagram.ftun4-2.fna.fbcdn.net&_nc_cat=106&_nc_oc=Q6cZ2QHAge7M8koMVV7uYR5oEWI8GQ6aOgIIhHFYClZlr2Xr2PB99dmKRBS6Jh68t5Y9cLA&_nc_ohc=prahZJUcrUsQ7kNvwH-W1XS&_nc_gid=pkBMEGdXAui0rRJgfddvlg&edm=ALGbJPMBAAAA&ccb=7-5&oh=00_AfGIlDxsr-5QMYeNxzgUdV5U8zn15A7IfkbmBrjshD5YZg&oe=68128742&_nc_sid=7d3ac5"
+                "url": "https://instagram.ftun10-2.fna.fbcdn.net/v/t51.2885-19/468238178_1090533185486238_1766558771032747843_n.jpg?_nc_ht=instagram.ftun10-2.fna.fbcdn.net&_nc_cat=106&_nc_oc=Q6cZ2QERlQlkJm35ojsF6s1JX18Jfiq2nubwqYy4nWMqImMiecvwtNati9L6RRMR_wJthxw&_nc_ohc=k0QE5sfpd3YQ7kNvwHusTxO&_nc_gid=WLkUINhm5M1Uj0vdg4eyMw&edm=ALGbJPMBAAAA&ccb=7-5&oh=00_AfIcYkLfHdTZUZ3do9f7_RdNkkn_HZvV5T9RMtrCtWpV7Q&oe=681FB642&_nc_sid=7d3ac5"
             },
             "is_unpublished": false,
             "id": "7931218225",
-            "latest_reel_media": 1745626899,
-            "has_profile_pic": true,
+            "latest_reel_media": null,
+            "has_profile_pic": null,
             "profile_pic_genai_tool_info": [],
             "biography": "𝐸𝓃𝑔𝒾𝓃𝑒𝑒𝓇𝒾𝓃𝑔 𝓈𝓉𝓊𝒹𝑒𝓃𝓉  👩🏻‍💻\n𝓐𝓵𝓵 𝔂𝓸𝓾 𝓱𝓪𝓿𝓮 𝓽𝓸 𝓭𝓸 𝓽𝓸 𝓫𝓮 𝓫𝓮𝓪𝓾𝓽𝓲𝓯𝓾𝓵 𝓲𝓼 𝓳𝓾𝓼𝓽 𝓫𝓮 𝔂𝓸𝓾𝓻𝓼𝓮𝓵𝓯  🐬",
             "full_name": "𝓜𝓪𝓻𝔂𝓮𝓶  𝓫𝓮𝓶𝓻𝓲",
             "is_verified": false,
             "show_account_transparency_details": true,
             "account_type": 1,
-            "follower_count": 1366,
-            "mutual_followers_count": null,
-            "profile_context_links_with_user_ids": null,
+            "follower_count": 1361,
+            "mutual_followers_count": 0,
+            "profile_context_links_with_user_ids": [],
             "address_street": null,
             "city_name": null,
             "is_business": false,
@@ -68,20 +76,20 @@
             "transparency_label": null,
             "transparency_product": null,
             "has_chaining": true,
-            "remove_message_entrypoint": null,
+            "remove_message_entrypoint": false,
             "fbid_v2": "17841407986751402",
             "is_embeds_disabled": false,
-            "is_professional_account": false,
-            "following_count": 644,
+            "is_professional_account": null,
+            "following_count": 639,
             "media_count": 37,
-            "total_clips_count": 1,
-            "latest_besties_reel_media": 0,
+            "total_clips_count": null,
+            "latest_besties_reel_media": null,
             "reel_media_seen_timestamp": null
         },
         "viewer": {
             "user": {
-                "pk": "7931218225",
-                "id": "7931218225",
+                "pk": "72125782509",
+                "id": "72125782509",
                 "can_see_organic_insights": false
             }
         }

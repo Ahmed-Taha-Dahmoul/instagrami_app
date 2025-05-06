@@ -3,10 +3,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'config.dart';
 import 'encryption.dart';
-
-
+import 'package:faker/faker.dart';
 
 class ApiService {
+  static String _generateRandomUserAgent() {
+    final faker = Faker();
+    return faker.internet.userAgent();
+  }
+
   static Future<Map<String, dynamic>> getInstagramData(String token) async {
     final response = await http.get(
       Uri.parse("${AppConfig.baseUrl}api/instagram-data/"),
@@ -50,31 +54,28 @@ class ApiService {
     }
   }
 
-
-  
-
-
   //bech tfechi profile mta3 user men instagram w tab3thou lel backend
-  
 
-  static Future<bool> getInstagramUserInfoAndSave(
-      String userId,
-      String csrftoken,
-      String sessionId,
-      String xIgAppId,
-      String token) async {
+  static Future<bool> getInstagramUserInfoAndSave(String userId,
+      String csrftoken, String sessionId, String xIgAppId, String token) async {
     String url = "https://www.instagram.com/graphql/query";
     print("Request URL: $url");
 
     try {
+      String userAgent = _generateRandomUserAgent();
 
-      
+      final headers = {
+        "cookie":
+            "csrftoken=$csrftoken; ds_user_id=$userId; sessionid=$sessionId",
+        "referer": "https://www.instagram.com/$userId/",
+        "x-csrftoken": csrftoken,
+        "x-ig-app-id": xIgAppId,
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent": userAgent,
+      };
 
       // GraphQL query variables
-      final variables = {
-        "id": userId,
-        "render_surface": "PROFILE"
-      };
+      final variables = {"id": userId, "render_surface": "PROFILE"};
 
       final body = {
         "fb_api_req_friendly_name": "PolarisProfilePageContentQuery",
@@ -83,7 +84,8 @@ class ApiService {
       };
 
       print("Sending request to Instagram GraphQL...");
-      final response = await http.post(Uri.parse(url), body: body);
+      final response =
+          await http.post(Uri.parse(url), headers: headers, body: body);
 
       print("Status Code: ${response.statusCode}");
       print('response body :');
@@ -95,7 +97,7 @@ class ApiService {
         if (user != null &&
             user.containsKey('follower_count') &&
             user.containsKey('following_count')) {
-            print("find user not null ");
+          print("find user not null ");
           int followerCount = user['follower_count'];
           int followingCount = user['following_count'];
 
@@ -106,14 +108,15 @@ class ApiService {
             "username": user['username'],
             "full_name": user['full_name'],
             "profile_pic_url": user['profile_pic_url'],
-            "media_count" : user['media_count'],
-            "biography" : user['biography'],
+            "media_count": user['media_count'],
+            "biography": user['biography'],
             "follower_count": followerCount,
             "following_count": followingCount,
           };
 
           // Sending fetched data to your API
-          String saveUrl = "${AppConfig.baseUrl}api/save-user-instagram-profile/";
+          String saveUrl =
+              "${AppConfig.baseUrl}api/save-user-instagram-profile/";
           final saveResponse = await http.post(
             Uri.parse(saveUrl),
             headers: {
@@ -143,9 +146,6 @@ class ApiService {
       return false;
     }
   }
-
-
-
 
   //hedhi bech tjib user profile mel backend
   static Future<Map<String, dynamic>> fetchInstagramUserProfile(
@@ -190,12 +190,10 @@ class ApiService {
     }
   }
 
-  
-
-
   static Future<bool> checkInstagramCounts(String accessToken) async {
     final response = await http.get(
-      Uri.parse('${AppConfig.baseUrl}api/check-instagram-counts/'), // Your updated API endpoint
+      Uri.parse(
+          '${AppConfig.baseUrl}api/check-instagram-counts/'), // Your updated API endpoint
       headers: {'Authorization': 'Bearer $accessToken'},
     );
 
@@ -209,23 +207,23 @@ class ApiService {
     }
   }
 
-  
   static Future<bool> checkIf12HoursPassed(String accessToken) async {
     final response = await http.get(
-      Uri.parse('${AppConfig.baseUrl}api/check-12-hours-passed/'), // Your Django API endpoint
+      Uri.parse(
+          '${AppConfig.baseUrl}api/check-12-hours-passed/'), // Your Django API endpoint
       headers: {'Authorization': 'Bearer $accessToken'},
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['has_12_hours_passed']; // Extract the boolean value from the response
+      return data[
+          'has_12_hours_passed']; // Extract the boolean value from the response
     } else {
       // Handle errors appropriately (e.g., throw an exception)
-      throw Exception('Failed to check if 12 hours passed: ${response.statusCode}');
+      throw Exception(
+          'Failed to check if 12 hours passed: ${response.statusCode}');
     }
   }
-
-
 
   static Future<Map<String, dynamic>> changeUnfollowStatus(
       String token, bool unfollowStatus) async {
@@ -258,8 +256,6 @@ class ApiService {
     }
   }
 
-
-
   static Future<bool> updateLastTimeFetched(String token) async {
     String url = "${AppConfig.baseUrl}api/update-last-time-fetched/";
 
@@ -272,22 +268,22 @@ class ApiService {
         },
       );
 
-
       if (response.statusCode == 200) {
-        return true;  // If status code is 200, return true
+        return true; // If status code is 200, return true
       } else {
         print('Error: ${response.statusCode}');
-        return false;  // If status code is not 200, return false
+        return false; // If status code is not 200, return false
       }
     } catch (e) {
       print('Exception: $e');
-      return false;  // In case of exception, return false
+      return false; // In case of exception, return false
     }
   }
 
-
-  static Future<Map<String, dynamic>> fetchInstagramStatsDifference(String token) async {
-    String url = "${AppConfig.baseUrl}api/instagram-stats-difference/"; // <- match your Django route
+  static Future<Map<String, dynamic>> fetchInstagramStatsDifference(
+      String token) async {
+    String url =
+        "${AppConfig.baseUrl}api/instagram-stats-difference/"; // <- match your Django route
 
     try {
       final response = await http.get(
@@ -311,6 +307,4 @@ class ApiService {
       return {"error": "Exception occurred", "details": e.toString()};
     }
   }
-
-
 }

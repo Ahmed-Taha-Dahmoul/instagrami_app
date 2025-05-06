@@ -4,9 +4,9 @@ import json
 url = "https://www.instagram.com/graphql/query"
 
 
-csrftoken= "J0tDJyPkpowe430IxGhNm4CikyEgySeK"
-userId= "7931218225"
-sessionId="7931218225%3AcwtqrwLRg5jQEI%3A0%3AAYcBhEp5-WAw3-vvV7G8UubLSucq7HNY55jdjlTdig"
+csrftoken= "YsBemdbyLT69wO-eUE86Q0"
+userId= "72125782509"
+sessionId="72125782509%3AF4hVzQWZNi9geA%3A17%3AAYd1rXY_T-RdX4Ept0exMUp6ThTO_xVWz9dAZeRJNQ"
 xIgAppId = "1217981644879628"
 
 headers = {
@@ -18,7 +18,7 @@ headers = {
 
 
 # Instagram user ID (replace with your target user)
-user_id = "7931218225"
+user_id = "72125782509"
 
 variables = {
     "id": user_id,

@@ -73,28 +73,31 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
         csrftoken == null ||
         sessionId == null ||
         xIgAppId == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isSearchLoading = false;
           _errorMessage = "Authentication error.";
         });
+      }
       return;
     }
     try {
       List<Map<String, dynamic>> results =
           await SearchSomeoneApiService.instagramSearch(
               _searchController.text, user1Id, csrftoken, sessionId, xIgAppId);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _searchResults = results;
           _isSearchLoading = false;
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isSearchLoading = false;
           _errorMessage = "Search failed: $e";
         });
+      }
     }
   }
 
@@ -119,21 +122,23 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
         csrftoken == null ||
         sessionId == null ||
         xIgAppId == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = "Authentication error.";
         });
+      }
       return;
     }
     String userAgent = SearchSomeoneApiService.generateRandomUserAgent();
     String userPk = user['pk']?.toString() ?? '';
     if (userPk.isEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = "Selected user has no valid ID.";
         });
+      }
       return;
     }
     try {
@@ -147,19 +152,21 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
           _extractUsers(followingData, 'edge_follow');
       List<Map<String, dynamic>> followerUsers =
           _extractUsers(followerData, 'edge_followed_by');
-      if (mounted)
+      if (mounted) {
         setState(() {
           _followedUsers = followingUsers;
           _followerUsers = followerUsers;
           _isDataLoaded = true;
           _isLoading = false;
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = "Failed to fetch data: $e";
         });
+      }
     }
   }
 
@@ -282,13 +289,12 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildResultsCountHeader(), // Show count above list
-          // Needs Expanded here if it's the primary scrolling content
           Expanded(child: _buildSearchResultsNew()), // Show results list
         ],
       );
     }
     // Show "No results" state if search was performed but found nothing
-    if (_searchController.text.isNotEmpty) {
+    if (_searchController.text.isNotEmpty && !_isSearchLoading) {
       return _buildNoResultsState();
     }
     // Show initial "Enter username" state
@@ -352,18 +358,15 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
 
   // --- Search Results List Widget (UPDATED for Private Indicator) ---
   Widget _buildSearchResultsNew() {
-    // Removed Expanded from here, handled by parent Column in _buildContentArea
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 16.0, vertical: 0), // Adjust vertical padding if needed
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
       itemCount: _searchResults.length,
-      // shrinkWrap: true, // Only use if parent Column isn't Expanded and causes issues
       itemBuilder: (context, index) {
         final user = _searchResults[index];
         final profilePicUrl = user['profile_pic_url'] ?? '';
         final username = user['username'] ?? 'Unknown';
         final fullName = user['full_name'] ?? '';
-        final bool isPrivate = user['is_private'] ?? false; // Get the flag
+        final bool isPrivate = user['is_private'] ?? false;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12.0),
@@ -385,30 +388,37 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
                   ? const Icon(Icons.person, size: 28, color: Colors.grey)
                   : null,
             ),
-            title: RichText(
-              // Use RichText for conditional styling
-              text: TextSpan(
-                // Use default text style from theme or define explicitly
-                style: DefaultTextStyle.of(context)
-                    .style
-                    .copyWith(fontSize: 15, color: darkGreyText),
-                children: [
-                  TextSpan(
-                      text: '@$username',
+            title: Row(
+              // Using Row for better layout control
+              children: <Widget>[
+                Flexible(
+                  // Allows the username Text to shrink and use ellipsis
+                  child: Text(
+                    '@$username',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: darkGreyText,
+                    ),
+                    overflow: TextOverflow
+                        .ellipsis, // Apply ellipsis if username is too long
+                    maxLines: 1, // Ensure it stays on one line
+                  ),
+                ),
+                if (isPrivate)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        left: 5.0), // Space between username and indicator
+                    child: Text(
+                      '(Private)',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold)), // Bold username
-                  if (isPrivate) // Conditionally add Private text
-                    const TextSpan(
-                      text: ' (Private)',
-                      style: TextStyle(
                         fontWeight: FontWeight.normal,
-                        color: mediumGreyText, // Grey color for indicator
+                        color: mediumGreyText, // Keep the distinct style
                         fontSize: 13, // Slightly smaller
                       ),
                     ),
-                ],
-              ),
-              overflow: TextOverflow.ellipsis,
+                  ),
+              ],
             ),
             subtitle: Text(
               fullName,
@@ -434,7 +444,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     );
   }
 
-  // --- TabBar and UserList (Keep your existing implementation) ---
+  // --- TabBar ---
   Widget _buildTabBar() {
     return Container(
       color: Colors.grey[100],
@@ -452,6 +462,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     );
   }
 
+  // --- UPDATED UserList with Numbering on the right ---
   Widget _buildUserList(List<Map<String, dynamic>> users, String emptyMessage) {
     if (users.isEmpty) {
       return Center(
@@ -463,7 +474,7 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
     }
     return ListView.separated(
       itemCount: users.length,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
       separatorBuilder: (context, index) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Divider(
@@ -478,7 +489,12 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
         final username = user['username'] ?? 'Unknown';
         final fullName = user['full_name'] ?? '';
         final isPrivate = user['is_private'] ?? false;
+
+        String itemNumber = (index + 1).toString();
+
         return ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
           leading: profilePicUrl.isNotEmpty
               ? CircleAvatar(
                   radius: 24,
@@ -486,10 +502,32 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
                 )
               : const CircleAvatar(
                   radius: 24, child: Icon(Icons.person, size: 28)),
-          title: Text(username,
-              style: const TextStyle(fontWeight: FontWeight.w500)),
-          subtitle: Text('$fullName ${isPrivate ? '(Private)' : ''}',
-              style: TextStyle(color: Colors.grey[600])),
+          title: Text(
+            username,
+            style: const TextStyle(
+                fontWeight: FontWeight.w500, color: darkGreyText, fontSize: 15),
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            '$fullName ${isPrivate ? '(Private)' : ''}',
+            style: TextStyle(color: mediumGreyText, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            decoration: BoxDecoration(
+              color: primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Text(
+              itemNumber,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: primaryBlue,
+                fontSize: 13,
+              ),
+            ),
+          ),
         );
       },
     );
@@ -498,7 +536,6 @@ class _SearchSomeoneScreenState extends State<SearchSomeoneScreen>
   // --- Error Message Widget ---
   Widget _buildErrorMessage() {
     return Center(
-      // Center error message
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Text(
