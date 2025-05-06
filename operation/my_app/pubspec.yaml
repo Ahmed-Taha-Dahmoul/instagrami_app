@@ -45,6 +45,7 @@ dependencies:
   intl: ^0.20.2
   shimmer: ^3.0.0
   lottie: ^2.6.0
+  connectivity_plus: ^5.0.2
 
 dev_dependencies:
   flutter_test:
